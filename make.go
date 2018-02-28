@@ -3,7 +3,7 @@ package geobuf_new
 import (
 	"github.com/paulmach/go.geojson"
 	"math"
-	geo "./geobuf"
+	geo "github.com/murphy214/geobuf_new/geobuf"
 	"reflect"
 )
 
