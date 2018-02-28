@@ -53,6 +53,24 @@ As you can see not by much, firstly I currently implement a scorched earth appro
 
 Obviously at a single feature rate I/O is much much faster the problem previously was reading from a file iteratively was extremely hacky and I ended up splitting up code where I should have used an io.Reader. My new repo [protoscan](github.com/murphy214/protoscan) fixes this. 
 
+### Benchmarks on a Single Feature I/O 
+
+**NOTE: This was done on one feature and not across multiple different types of features with varying degrees of vertices geometry types and number of properties, in other words this is just a rought idea**]
+
+```
+goos: darwin
+goarch: amd64
+pkg: github.com/murphy214/geobuf_new
+Benchmark_Make_Feature-8        	   30000	     51504 ns/op	   14048 B/op	     553 allocs/op
+Benchmark_Write_Feature_Old-8   	   10000	    222587 ns/op	   26776 B/op	      23 allocs/op
+Benchmark_Write_Feature_New-8   	   30000	     58234 ns/op	   21520 B/op	     556 allocs/op
+Benchmark_Read_Feature-8        	   30000	     52071 ns/op	   16232 B/op	     555 allocs/op
+Benchmark_Read_Feature_Old-8    	    5000	    346338 ns/op	   64440 B/op	    2239 allocs/op
+Benchmark_Read_Feature_New-8    	   30000	     57927 ns/op	   33072 B/op	     574 allocs/op
+PASS
+```
+
+
 # Differences between previous implementation
 
 * New proto struct
