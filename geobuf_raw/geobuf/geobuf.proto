@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+// Variant type encoding
+// The use of values is described in section 4.1 of the specification
+message Value {
+	// Exactly one of these values must be present in a valid message
+	string string_value = 1;
+	float float_value = 2;
+	double double_value = 3;
+	int64 int_value = 4;
+	uint64 uint_value = 5;
+	sint64 sint_value = 6;
+	bool bool_value = 7;
+}
+
+// GeomType is described in section 4.3.4 of the specification
+enum GeomType {
+	UNKNOWN = 0;
+	POINT = 1;
+	LINESTRING = 2;
+	POLYGON = 3;
+}
+
+message Feature {
+	uint64 Id = 1;
+	map<string, Value>  Properties = 2;
+ 	GeomType type = 3;
+	repeated uint64 Geometry = 4 [ packed = true ];
+	repeated int64 BoundingBox = 5 [ packed = true ]; // N,S,E,W
+}
+
+message FeatureCollection {
+	repeated Feature Features = 1;
+}
+
