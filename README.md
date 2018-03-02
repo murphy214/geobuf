@@ -69,6 +69,19 @@ Benchmark_Read_Feature_Old-8    	    5000	    346338 ns/op	   64440 B/op	    223
 Benchmark_Read_Feature_New-8    	   30000	     57927 ns/op	   33072 B/op	     574 allocs/op
 PASS
 ```
+### Benchmarks on a Large Feature Collection 
+
+In this set of benchmarks I take a 180 mb geojson file consisting of roadways in wv, and read it via the normal geojson api and then the new geobuf way. File size comparison is 180 mb to 140 mb but thats because these are really property dense features, for a counties data set with 5 properties it was 2.2 mb to 750 kb. 
+
+```
+goarch: amd64
+Benchmark_Read_FeatureCollection_Old-8   	       1	10830813046 ns/op	1844656296 B/op	49786498 allocs/op
+Benchmark_Read_FeatureCollection_New-8   	       1	3920783447 ns/op	2037390840 B/op	21596805 allocs/op
+PASS
+```
+
+**As you can see its not only signicantly faster (2-3x) while also being 2-3x smaller allocations an operation its overall memory footprint (which isn't measured) is basically nothing, as each single feature is being read in sequentially.**
+
 
 
 # Differences between previous implementation
