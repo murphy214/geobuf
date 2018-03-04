@@ -1,7 +1,7 @@
 package geobuf_new
 
 import (
-	"./geobuf_raw"
+	"github.com/murphy214/geobuf_new/geobuf_raw"
 	"os"
 	"bufio"
 	//"io"
@@ -35,7 +35,7 @@ type Writer struct {
 }
 
 // creates a writer struct
-func Writer_File_New(filename string) Writer {
+func WriterFileNew(filename string) Writer {
 	file,err := os.Create(filename)
 	if err != nil {
 		fmt.Println(err)
@@ -44,7 +44,7 @@ func Writer_File_New(filename string) Writer {
 }
 
 // creates a writer struct
-func Writer_File(filename string) Writer {
+func WriterFile(filename string) Writer {
 	file,err := os.OpenFile(filename,os.O_APPEND|os.O_RDWR, os.ModeAppend)
 	if err != nil {
 		fmt.Println(err)
@@ -53,20 +53,20 @@ func Writer_File(filename string) Writer {
 }
 
 // creates a writer buffer new
-func Writer_Buf_New() Writer {
+func WriterBufNew() Writer {
     var b bytes.Buffer
     return Writer{Writer:bufio.NewWriter(&b),Buffer:&b,FileBool:false}
 }	
 
 // creates a writer buffer 
-func Writer_Buf(bytevals []byte) Writer {
+func WriterBuf(bytevals []byte) Writer {
 	buffer := bytes.NewBuffer(bytevals)
     return Writer{Writer:bufio.NewWriter(buffer),Buffer:buffer,FileBool:false}
 }	
 
 // writing feature
-func (writer *Writer) Write_Feature(feature *geojson.Feature) {
-	bytevals,err := proto.Marshal(geobuf_raw.Make_Feature(feature))
+func (writer *Writer) WriteFeature(feature *geojson.Feature) {
+	bytevals,err := proto.Marshal(geobuf_raw.MakeFeature(feature))
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -82,12 +82,21 @@ func (writer *Writer) Write_Feature(feature *geojson.Feature) {
 		writer.File.Write(bytevals)
 	} else {
 		writer.Writer.Write(bytevals)
-    	if err = writer.Writer.Flush(); err != nil {
-        	fmt.Println(err)
-    	}
     }
-	//writer.Writer.Reset()
 }
+
+func (writer *Writer) Bytes() []byte {
+	// 
+	if !writer.FileBool {
+		writer.Writer.Flush()
+		writer.Writer = bufio.NewWriter(writer.Buffer)
+		return writer.Buffer.Bytes()
+
+	}
+	return []byte{}
+}
+
+//func (writer *Writer) WriteFeature(feature *geojson.Feature) {
 
 
 

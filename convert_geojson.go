@@ -2,14 +2,15 @@ package geobuf_new
 
 
 import (
-	//"io/ioutil"
+	"io/ioutil"
 	"github.com/paulmach/go.geojson"
 	"fmt"
 	"os"
 	"sync"
 	//"log"
 	//"io"
-	//"strings"
+	"strings"
+	"time"
 )
 
 // structure used for converting geojson
@@ -22,7 +23,7 @@ type Geojson_File struct {
 }
 
 // creates a geojosn
-func New_Geojson(filename string) Geojson_File {
+func NewGeojson(filename string) Geojson_File {
 
 	file,_ := os.Open(filename)
 
@@ -42,7 +43,7 @@ func New_Geojson(filename string) Geojson_File {
 }
 
 // reads a chunk of a geojson file
-func (geojsonfile *Geojson_File) Read_Chunk(size int) []string {
+func (geojsonfile *Geojson_File) ReadChunk(size int) []string {
 	var bytevals []byte
 	if size > int(geojsonfile.Pos) + 10000000 {
 		bytevals = make([]byte,10000000)
@@ -109,46 +110,8 @@ func (geojsonfile *Geojson_File) Read_Chunk(size int) []string {
 	return geojsons
 }
 
-// splits feature into smaller groups
-func Split_Feature(i *geojson.Feature) []*geojson.Feature {
-	if  i.Geometry == nil {
-		return []*geojson.Feature{}
-	} else if i.Geometry.Type == "MultiLineString" {
-		props := i.Properties
-		newfeats := []*geojson.Feature{}
-		for _,newline := range i.Geometry.MultiLineString {
-			newfeats = append(newfeats,&geojson.Feature{Geometry:&geojson.Geometry{LineString:newline,Type:"LineString"},Properties:props,ID:i.ID})
-		}
-
-		return newfeats
-	} else if i.Geometry.Type == "MultiPolygon" {
-		props := i.Properties
-
-		newfeats := []*geojson.Feature{}
-		for _,newline := range i.Geometry.MultiPolygon {
-			newfeats = append(newfeats,&geojson.Feature{Geometry:&geojson.Geometry{Polygon:newline,Type:"Polygon"},Properties:props,ID:i.ID})
-		}
-		return newfeats
-	} else if i.Geometry.Type == "MultiPoint" {
-		props := i.Properties
-
-
-		newfeats := []*geojson.Feature{}
-		for _,newline := range i.Geometry.MultiPoint {
-			newfeats = append(newfeats,&geojson.Feature{Geometry:&geojson.Geometry{Point:newline,Type:"Point"},Properties:props,ID:i.ID})
-		}
-		return newfeats
-	} else {
-
-		return []*geojson.Feature{i}
-	}
-	return []*geojson.Feature{}
-}
-
-
-
 // adds featuers
-func Add_Features(geobuf Writer,feats []string,count int) int {
+func AddFeatures(geobuf Writer,feats []string,count int,s time.Time) int {
 	var wg sync.WaitGroup
 	for _,i := range feats {
 		wg.Add(1)
@@ -159,28 +122,24 @@ func Add_Features(geobuf Writer,feats []string,count int) int {
 				feat,err := geojson.UnmarshalFeature([]byte(i))
 				//fmt.Println(i,feat)
 				if err != nil {
-					fmt.Println(err)
-				}
-			//fmt.Println(feat)
-				feats2 := Split_Feature(feat)
-				for _,feat2 := range feats2 {
-					feat2.ID = count
-			//bytevals = append(bytevals,Write_Feature(feat)...)
-					geobuf.Write_Feature(feat2)
-					count += 1
+					fmt.Println(err,feat)
+				} else {
+					if feat.Geometry != nil {
+						geobuf.WriteFeature(feat)
+					}
 				}
 			}
-			fmt.Printf("\r[%d/%d] Creating geojson_buf from raw geojson string",count,len(feats))
 			wg.Done()
 		}(i)
 	}
 	wg.Wait()
-	return count
+	count += len(feats)
+	fmt.Printf("\r%d features created from raw geojson string in %s",count,time.Now().Sub(s))
 
+	return count
 }
 
-
-func Get_Filesize(filename string) int {
+func GetFilesize(filename string) int {
 	fi, err := os.Stat(filename);
 	if err != nil {
 		fmt.Println(err)
@@ -192,18 +151,116 @@ func Get_Filesize(filename string) int {
 }
 
 // function used for converting geojson to geobuf
-func Convert_Geojson(infile string,outfile string) {
-	size :=Get_Filesize(infile)
+func ConvertGeojson(infile string,outfile string) {
+	s := time.Now()
+	size :=GetFilesize(infile)
 
-	geobuf := Writer_File_New(outfile)
-	geojsonfile := New_Geojson(infile)
+	geobuf := WriterFileNew(outfile)
+	geojsonfile := NewGeojson(infile)
 	count := 0
 	feats := []string{"d"}
 	//fmt.Println(feats)
 	for len(feats) > 0 {
-		feats = geojsonfile.Read_Chunk(size)
-
-		count = Add_Features(geobuf,feats,count)
+		feats = geojsonfile.ReadChunk(size)
+		count = AddFeatures(geobuf,feats,count,s)
 	}
-	//geobuf.Writer.Flush()
 }
+
+// function used for converting geojson to geobuf
+func ConvertGeobuf(infile string,outfile string) {
+
+	geobuf := ReaderFile(infile)
+	//geojsonfile := NewGeojson(outfile)
+	//fc.FeatureCollection{}
+
+	file,err := os.Create(outfile)
+	if err != nil {
+		fmt.Println(err)
+	}
+	file.WriteString(`{"type": "FeatureCollection", "features": [`)
+
+	for geobuf.Next() {
+		feature := geobuf.Feature()
+		s,_ := feature.MarshalJSON()
+		if geobuf.Next() {
+			file.Write(append(s,44))
+
+		} else {
+			file.Write(s)
+
+		}
+	}
+	file.WriteString("]}")
+}
+
+
+func BenchmarkRead(filename_geojson string,filename_geobuf string) {
+	// swapping filenames if needed
+	if strings.Contains(filename_geojson,".geobuf") {
+		dummy := filename_geojson
+		filename_geojson = filename_geobuf
+		filename_geobuf = dummy
+	}
+
+	// timing geojson read
+	s := time.Now()
+	bytevals,err := ioutil.ReadFile(filename_geojson)
+	if err != nil {
+		fmt.Println(err)
+	}
+	_,err = geojson.UnmarshalFeatureCollection(bytevals)
+	if err != nil {
+		fmt.Println(err)
+	}
+	end_geojson := time.Now().Sub(s)
+
+	s = time.Now()
+	geobuf := ReaderFile(filename_geobuf)
+	for geobuf.Next() {
+		geobuf.Feature()
+	}
+	end_geobuf := time.Now().Sub(s)
+
+
+	fmt.Printf("Time to Read Geojson File: %s\nTime to Read Geobuf File: %s\n",end_geojson,end_geobuf)
+}
+
+
+func BenchmarkWrite(filename_geojson string,filename_geobuf string) {
+	// swapping filenames if needed
+	if strings.Contains(filename_geojson,".geobuf") {
+		dummy := filename_geojson
+		filename_geojson = filename_geobuf
+		filename_geobuf = dummy
+	}
+
+	// getting feature colllection
+	bytevals,err := ioutil.ReadFile(filename_geojson)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fc,err := geojson.UnmarshalFeatureCollection(bytevals)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// timing geojson read
+	s := time.Now()
+	_,err = fc.MarshalJSON()
+	if err != nil {
+		fmt.Println(err)
+	}
+	end_geojson := time.Now().Sub(s)
+
+	s = time.Now()
+	geobuf := WriterBufNew()
+	for _,feature := range fc.Features {
+		geobuf.WriteFeature(feature)
+	}
+	geobuf.Bytes()
+	end_geobuf := time.Now().Sub(s)
+
+
+	fmt.Printf("Time to Write Geojson File: %s\nTime to Write Geobuf File: %s\n",end_geojson,end_geobuf)
+}
+

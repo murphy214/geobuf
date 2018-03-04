@@ -1,8 +1,8 @@
 package geobuf_new
 
 import (
-	"./geobuf_raw"
-	geo "./geobuf_raw/geobuf"
+	"github.com/murphy214/geobuf_new/geobuf_raw"
+	geo "github.com/murphy214/geobuf_new/geobuf_raw/geobuf"
 	"os"
 	"bufio"
 	//"io"
@@ -22,12 +22,12 @@ type Reader struct {
 }
 
 // creates a reader for a byte array
-func Reader_Bytes(bytevals []byte) *Reader {
+func ReaderBytes(bytevals []byte) *Reader {
 	return &Reader{Reader:protoscan.NewProtobufScanner(bytes.NewReader(bytevals)),FileBool:false}
 }
 
 // creates a reader for file
-func Reader_File(filename string) *Reader {
+func ReaderFile(filename string) *Reader {
 	file,err := os.Open(filename)
 	if err != nil {
 		fmt.Println(err)
@@ -60,7 +60,17 @@ func (reader *Reader) Feature() *geojson.Feature {
 	if err != nil {
 		fmt.Println(err)
 	}
-	return geobuf_raw.Read_Feature(feature)
+	return geobuf_raw.ReadFeature(feature)
+}
+
+
+func ReadFeature(bytevals []byte) *geojson.Feature {
+	feature := &geo.Feature{}
+	err := proto.Unmarshal(bytevals,feature)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return geobuf_raw.ReadFeature(feature)
 }
 
 
