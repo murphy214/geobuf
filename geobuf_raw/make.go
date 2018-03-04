@@ -107,52 +107,34 @@ func Make_Geom(geom *geojson.Geometry) ([]uint64,geo.GeomType,[]int64) {
 
 // reflects a tile value back and stuff
 func Reflect_Value(v interface{}) *geo.Value {
-	var tv *geo.Value
+	tv := new(geo.Value)
 	//fmt.Print(v)
 	vv := reflect.ValueOf(v)
 	kd := vv.Kind()
-	if (reflect.Float64 == kd) || (reflect.Float32 == kd) {
-		//fmt.Print(v, "float", k)
-		tv = Make_Tv_Float(float64(vv.Float()))
-		//hash = Hash_Tv(tv)
-	} else if (reflect.Int == kd) || (reflect.Int8 == kd) || (reflect.Int16 == kd) || (reflect.Int32 == kd) || (reflect.Int64 == kd) || (reflect.Uint8 == kd) || (reflect.Uint16 == kd) || (reflect.Uint32 == kd) || (reflect.Uint64 == kd) {
-		//fmt.Print(v, "int", k)
-		tv = Make_Tv_Int(int(vv.Int()))
-		//hash = Hash_Tv(tv)
-	} else if reflect.String == kd {
-		//fmt.Print(v, "str", k)
-		tv = Make_Tv_String(string(vv.String()))
-		//hash = Hash_Tv(tv)
 
-	} else {
-		tv := new(geo.Value)
-		t := ""
-		tv.StringValue = t
+	switch kd {
+	case reflect.String:
+		val := string(vv.String())
+		tv.StringValue = val
+
+	case reflect.Float32:
+		val := float32(vv.Float())
+		tv.FloatValue = val
+	case reflect.Float64:
+		// do double here
+		val := float64(vv.Float())
+		tv.DoubleValue = val
+	case reflect.Int,reflect.Int8,reflect.Int16,reflect.Int32,reflect.Int64:
+		val := int64(vv.Int())
+		tv.IntValue = val
+	case reflect.Uint,reflect.Uint8,reflect.Uint16,reflect.Uint32,reflect.Uint64:
+		val := uint64(vv.Uint())
+		tv.UintValue = val
+	case reflect.Bool:
+		val := vv.Bool()
+		tv.BoolValue = val
 	}
-	return tv
-}
 
-// makes a tile_value string
-func Make_Tv_String(stringval string) *geo.Value {
-	tv := new(geo.Value)
-	t := string(stringval)
-	tv.StringValue = t
-	return tv
-}
-
-// makes a tile value float
-func Make_Tv_Float(val float64) *geo.Value {
-	tv := new(geo.Value)
-	t := float64(val)
-	tv.DoubleValue = t
-	return tv
-}
-
-// makes a tile value int
-func Make_Tv_Int(val int) *geo.Value {
-	tv := new(geo.Value)
-	t := int64(val)
-	tv.SintValue = t
 	return tv
 }
 
