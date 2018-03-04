@@ -7,6 +7,8 @@ import (
 	"reflect"
 )
 
+var powerfactor = math.Pow(10.0,7.0)
+
 // converts a single pt
 func Convert_Pt(pt []float64) []int64 {
 	newpt := make([]int64,2)
@@ -61,10 +63,10 @@ func Make_Line(line [][]float64) ([]uint64,[]int64) {
 		}
 		oldpt = pt
 	}
-	return newline,[]int64{int64(west * math.Pow(10.0,7.0)),
-	int64(south * math.Pow(10.0,7.0)), 
-	int64(east * math.Pow(10.0,7.0)),
-	int64(north * math.Pow(10.0,7.0)),}
+	return newline,[]int64{int64(west * powerfactor),
+	int64(south * powerfactor), 
+	int64(east * powerfactor),
+	int64(north * powerfactor),}
 }
 
 // creates a polygon 
@@ -81,6 +83,33 @@ func Make_Polygon(polygon [][][]float64) ([]uint64,[]int64) {
 		}
 	}
 	return geometry,bb
+}
+
+// creates a multi polygon array 
+func Make_MultiPolygon(multipolygon [][][][]float64) ([]uint64,[]int64) {
+	geometry := []uint64{}
+	west, south, east, north := 180.0, 90.0, -180.0, -90.0
+	west,south,east,north = west * powerfactor,south * powerfactor,east * powerfactor,north * powerfactor
+	bb := []int64{int64(west),int64(south),int64(east),int64(north)}
+
+	for _,polygon := range multipolygon {
+		geometry = append(geometry,uint64(len(polygon)))
+		tempgeom,tempbb := Make_Polygon(polygon)
+		geometry = append(geometry,tempgeom...)
+		if bb[0] > tempbb[0] {
+			bb[0] = tempbb[0]
+		}
+		if bb[1] > tempbb[1] {
+			bb[1] = tempbb[1]
+		}
+		if bb[2] < tempbb[2] {
+			bb[2] = tempbb[2]
+		}
+		if bb[3] < tempbb[3] {
+			bb[3] = tempbb[3]
+		}
+	}
+	return geometry,bb
 }	
 
 
@@ -90,18 +119,32 @@ func Make_Polygon(polygon [][][]float64) ([]uint64,[]int64) {
 // header for rings of polygon
 func Make_Geom(geom *geojson.Geometry) ([]uint64,geo.GeomType,[]int64) {
 	var geomtype geo.GeomType
-	if geom.Type == "Point" {
+
+	switch geom.Type {
+	case "Point":
 		newpt := Make_Point(geom.Point)
 		newpt2 := Convert_Pt(geom.Point)
-
 		return newpt,geo.GeomType_POINT,[]int64{newpt2[0],newpt2[1],newpt2[0],newpt2[1]}
-	} else if geom.Type == "LineString" {
+	case "LineString":
 		geometry,bb :=  Make_Line(geom.LineString)
 		return geometry,geo.GeomType_LINESTRING,bb
-	} else if geom.Type == "Polygon" {
+	case "Polygon":
 		geometry,bb :=  Make_Polygon(geom.Polygon)
 		return geometry,geo.GeomType_POLYGON,bb
+	case "MultiPoint":
+		// multipoint code here
+		geometry,bb := Make_Line(geom.MultiPoint)
+		return geometry,geo.GeomType_MULTIPOINT,bb
+	case "MultiLineString":
+		// multi line string code here
+		geometry,bb := Make_Polygon(geom.MultiLineString)
+		return geometry,geo.GeomType_MULTILINESTRING,bb		
+	case "MultiPolygon":
+		// multi polygon code here
+		geometry,bb := Make_MultiPolygon(geom.MultiPolygon)
+		return geometry,geo.GeomType_MULTIPOLYGON,bb
 	}
+
 	return []uint64{},geomtype,[]int64{}
 } 
 

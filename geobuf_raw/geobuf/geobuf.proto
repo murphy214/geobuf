@@ -19,6 +19,9 @@ enum GeomType {
 	POINT = 1;
 	LINESTRING = 2;
 	POLYGON = 3;
+	MULTIPOINT = 4;
+	MULTILINESTRING = 5;
+	MULTIPOLYGON = 6;
 }
 
 message Feature {
