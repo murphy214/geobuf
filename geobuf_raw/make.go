@@ -3,14 +3,14 @@ package geobuf_raw
 import (
 	"github.com/paulmach/go.geojson"
 	"math"
-	geo "./geobuf"
+	geo "github.com/murphy214/geobuf_new/geobuf_raw/geobuf"
 	"reflect"
 )
 
 var powerfactor = math.Pow(10.0,7.0)
 
 // converts a single pt
-func Convert_Pt(pt []float64) []int64 {
+func ConvertPt(pt []float64) []int64 {
 	newpt := make([]int64,2)
 	newpt[0] = int64(pt[0] * math.Pow(10.0,7.0))
 	newpt[1] = int64(pt[1] * math.Pow(10.0,7.0))	
@@ -23,13 +23,13 @@ func paramEnc(value int64) uint64 {
 }
 
 // makes a given point
-func Make_Point(pt []float64) []uint64 {
-	point := Convert_Pt(pt)
+func MakePoint(pt []float64) []uint64 {
+	point := ConvertPt(pt)
 	return []uint64{paramEnc(point[0]),paramEnc(point[1])}
 }
 
 // makes a line
-func Make_Line(line [][]float64) ([]uint64,[]int64) {
+func MakeLine(line [][]float64) ([]uint64,[]int64) {
 	west, south, east, north := 180.0, 90.0, -180.0, -90.0
 	//oldpt := Convert_Pt(line[0])
 	newline := make([]uint64,len(line)*2)
@@ -52,7 +52,7 @@ func Make_Line(line [][]float64) ([]uint64,[]int64) {
 			north = y
 		}
 
-		pt = Convert_Pt(point)
+		pt = ConvertPt(point)
 		if i == 0 {
 			newline[0] = paramEnc(pt[0])
 			newline[1] = paramEnc(pt[1])
@@ -70,13 +70,13 @@ func Make_Line(line [][]float64) ([]uint64,[]int64) {
 }
 
 // creates a polygon 
-func Make_Polygon(polygon [][][]float64) ([]uint64,[]int64) {
+func MakePolygon(polygon [][][]float64) ([]uint64,[]int64) {
 	geometry := []uint64{}
 	bb := []int64{}
 	for i,cont := range polygon {
 		geometry = append(geometry,uint64(len(cont) * 2))
 
-		tmpgeom,tmpbb := Make_Line(cont)
+		tmpgeom,tmpbb := MakeLine(cont)
 		geometry = append(geometry,tmpgeom...)
 		if i == 0 {
 			bb = tmpbb
@@ -86,7 +86,7 @@ func Make_Polygon(polygon [][][]float64) ([]uint64,[]int64) {
 }
 
 // creates a multi polygon array 
-func Make_MultiPolygon(multipolygon [][][][]float64) ([]uint64,[]int64) {
+func MakeMultiPolygon(multipolygon [][][][]float64) ([]uint64,[]int64) {
 	geometry := []uint64{}
 	west, south, east, north := 180.0, 90.0, -180.0, -90.0
 	west,south,east,north = west * powerfactor,south * powerfactor,east * powerfactor,north * powerfactor
@@ -94,7 +94,7 @@ func Make_MultiPolygon(multipolygon [][][][]float64) ([]uint64,[]int64) {
 
 	for _,polygon := range multipolygon {
 		geometry = append(geometry,uint64(len(polygon)))
-		tempgeom,tempbb := Make_Polygon(polygon)
+		tempgeom,tempbb := MakePolygon(polygon)
 		geometry = append(geometry,tempgeom...)
 		if bb[0] > tempbb[0] {
 			bb[0] = tempbb[0]
@@ -117,31 +117,31 @@ func Make_MultiPolygon(multipolygon [][][][]float64) ([]uint64,[]int64) {
 // flat for liens no header
 // flaot for points
 // header for rings of polygon
-func Make_Geom(geom *geojson.Geometry) ([]uint64,geo.GeomType,[]int64) {
+func MakeGeom(geom *geojson.Geometry) ([]uint64,geo.GeomType,[]int64) {
 	var geomtype geo.GeomType
 
 	switch geom.Type {
 	case "Point":
-		newpt := Make_Point(geom.Point)
-		newpt2 := Convert_Pt(geom.Point)
+		newpt := MakePoint(geom.Point)
+		newpt2 := ConvertPt(geom.Point)
 		return newpt,geo.GeomType_POINT,[]int64{newpt2[0],newpt2[1],newpt2[0],newpt2[1]}
 	case "LineString":
-		geometry,bb :=  Make_Line(geom.LineString)
+		geometry,bb :=  MakeLine(geom.LineString)
 		return geometry,geo.GeomType_LINESTRING,bb
 	case "Polygon":
-		geometry,bb :=  Make_Polygon(geom.Polygon)
+		geometry,bb :=  MakePolygon(geom.Polygon)
 		return geometry,geo.GeomType_POLYGON,bb
 	case "MultiPoint":
 		// multipoint code here
-		geometry,bb := Make_Line(geom.MultiPoint)
+		geometry,bb := MakeLine(geom.MultiPoint)
 		return geometry,geo.GeomType_MULTIPOINT,bb
 	case "MultiLineString":
 		// multi line string code here
-		geometry,bb := Make_Polygon(geom.MultiLineString)
+		geometry,bb := MakePolygon(geom.MultiLineString)
 		return geometry,geo.GeomType_MULTILINESTRING,bb		
 	case "MultiPolygon":
 		// multi polygon code here
-		geometry,bb := Make_MultiPolygon(geom.MultiPolygon)
+		geometry,bb := MakeMultiPolygon(geom.MultiPolygon)
 		return geometry,geo.GeomType_MULTIPOLYGON,bb
 	}
 
@@ -149,7 +149,7 @@ func Make_Geom(geom *geojson.Geometry) ([]uint64,geo.GeomType,[]int64) {
 } 
 
 // reflects a tile value back and stuff
-func Reflect_Value(v interface{}) *geo.Value {
+func ReflectValue(v interface{}) *geo.Value {
 	tv := new(geo.Value)
 	//fmt.Print(v)
 	vv := reflect.ValueOf(v)
@@ -181,18 +181,18 @@ func Reflect_Value(v interface{}) *geo.Value {
 	return tv
 }
 
-func Make_Properties(properties map[string]interface{}) map[string]*geo.Value {
+func MakeProperties(properties map[string]interface{}) map[string]*geo.Value {
 	newmap := map[string]*geo.Value{}
 	for k,v := range properties {
-		newmap[k] = Reflect_Value(v)
+		newmap[k] = ReflectValue(v)
 	}
 	return newmap
 }
 
 
-func Make_Feature(feat *geojson.Feature) *geo.Feature {
+func MakeFeature(feat *geojson.Feature) *geo.Feature {
 	// getting geometry and geom type
-	geom,geom_type,bb := Make_Geom(feat.Geometry)
+	geom,geom_type,bb := MakeGeom(feat.Geometry)
 
 	id,boolval := feat.ID.(uint64)
 
@@ -200,7 +200,7 @@ func Make_Feature(feat *geojson.Feature) *geo.Feature {
 	feature := &geo.Feature{
 				Geometry:geom,
 				Type:geom_type,
-				Properties:Make_Properties(feat.Properties),
+				Properties:MakeProperties(feat.Properties),
 				BoundingBox:bb,
 	}
 	if boolval {

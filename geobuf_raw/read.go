@@ -3,7 +3,7 @@ package geobuf_raw
 import (
 	"github.com/paulmach/go.geojson"
 	"math"
-	geo "./geobuf"
+	geo "github.com/murphy214/geobuf_new/geobuf_raw/geobuf"
 )
 
 // decodes a given delta
@@ -17,16 +17,16 @@ func DecodeDelta(nume uint64) float64 {
 }
 
 // reads a point
-func Read_Point(geom []uint64) []float64 {
+func ReadPoint(geom []uint64) []float64 {
 	return []float64{DecodeDelta(geom[0]),DecodeDelta(geom[1])}
 }
 
 // reads a line
-func Read_Line(line []uint64) [][]float64 {
+func ReadLine(line []uint64) [][]float64 {
 	newline := make([][]float64,len(line)/2)
 	pt := []float64{0.0,0.0}
 	for i := 0; i < len(newline); i++ {
-		deltapt := Read_Point(line[i*2:i*2+2])
+		deltapt := ReadPoint(line[i*2:i*2+2])
 		newpt := []float64{pt[0] + deltapt[0],pt[1] + deltapt[1]}
 		newline[i] = newpt
 		pt = newpt
@@ -35,13 +35,13 @@ func Read_Line(line []uint64) [][]float64 {
 	return newline
 }
 
-func Read_Polygon(polygon []uint64) [][][]float64 {
+func ReadPolygon(polygon []uint64) [][][]float64 {
 	pos := 0
 	newpolygon := [][][]float64{}
 	for pos < len(polygon) {
 		size := int(polygon[pos])
 		pos += 1
-		line := Read_Line(polygon[pos:pos+size])
+		line := ReadLine(polygon[pos:pos+size])
 		line[len(line)-1] = line[0]
 		newpolygon = append(newpolygon,line)
 		pos += size
@@ -50,7 +50,7 @@ func Read_Polygon(polygon []uint64) [][][]float64 {
 }
 
 
-func Read_MultiPolygon(multipolygon []uint64) [][][][]float64 {
+func ReadMultiPolygon(multipolygon []uint64) [][][][]float64 {
 	pos := 0
 	newmultipolygon := [][][][]float64{}
 	for pos < len(multipolygon) {
@@ -64,33 +64,33 @@ func Read_MultiPolygon(multipolygon []uint64) [][][][]float64 {
 			pos += size
 			currentring += 1
 		}
-		newmultipolygon = append(newmultipolygon,Read_Polygon(multipolygon[startpos:pos]))
+		newmultipolygon = append(newmultipolygon,ReadPolygon(multipolygon[startpos:pos]))
 	}
 	return newmultipolygon
 }
 
 
 // decodes a geometry
-func Read_Geometry(geom []uint64,geomtype geo.GeomType) *geojson.Geometry {
+func ReadGeometry(geom []uint64,geomtype geo.GeomType) *geojson.Geometry {
 	switch geomtype {
 	case geo.GeomType_POINT:
-		return geojson.NewPointGeometry(Read_Point(geom))
+		return geojson.NewPointGeometry(ReadPoint(geom))
 	case geo.GeomType_LINESTRING:	
-		return geojson.NewLineStringGeometry(Read_Line(geom))
+		return geojson.NewLineStringGeometry(ReadLine(geom))
 	case geo.GeomType_POLYGON:
-		return geojson.NewPolygonGeometry(Read_Polygon(geom))
+		return geojson.NewPolygonGeometry(ReadPolygon(geom))
 	case geo.GeomType_MULTIPOINT:
-		return geojson.NewMultiPointGeometry(Read_Line(geom)...)
+		return geojson.NewMultiPointGeometry(ReadLine(geom)...)
 	case geo.GeomType_MULTILINESTRING:
-		return geojson.NewMultiLineStringGeometry(Read_Polygon(geom)...)
+		return geojson.NewMultiLineStringGeometry(ReadPolygon(geom)...)
 	case geo.GeomType_MULTIPOLYGON:
-		return geojson.NewMultiPolygonGeometry(Read_MultiPolygon(geom)...)
+		return geojson.NewMultiPolygonGeometry(ReadMultiPolygon(geom)...)
 	}
 
 	return &geojson.Geometry{}
 }
 
-func Get_Value(vall *geo.Value) interface{} {
+func GetValue(vall *geo.Value) interface{} {
 	val := *vall
 	if val.StringValue != "" {
 		return val.StringValue
@@ -117,16 +117,16 @@ func Get_Value(vall *geo.Value) interface{} {
 }
 
 
-func Get_ID(id interface{}) (interface{},bool) {
+func GetID(id interface{}) (interface{},bool) {
 	if id == nil {
 		return "",false
 	} 
 	return id,true
 }
 
-func Read_Feature(feat *geo.Feature) *geojson.Feature {
+func ReadFeature(feat *geo.Feature) *geojson.Feature {
 	feature := &geojson.Feature{Properties:map[string]interface{}{}}
-	feature.Geometry = Read_Geometry(feat.Geometry,feat.Type)
+	feature.Geometry = ReadGeometry(feat.Geometry,feat.Type)
 	
 	// adding id
 	if feat.Id != 0 {
@@ -135,7 +135,7 @@ func Read_Feature(feat *geo.Feature) *geojson.Feature {
 
 	// getting properties
 	for k,v := range feat.Properties {
-		feature.Properties[k] = Get_Value(v)
+		feature.Properties[k] = GetValue(v)
 	}
 	val := math.Pow(10.0,7.0)
 	if len(feat.BoundingBox) > 0 {
