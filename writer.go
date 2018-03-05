@@ -7,7 +7,7 @@ import (
 	//"io"
 	"bytes"
 	"fmt"
-	"github.com/golang/protobuf/proto"
+	//"github.com/golang/protobuf/proto"
 	"github.com/paulmach/go.geojson"
 )
 
@@ -66,10 +66,7 @@ func WriterBuf(bytevals []byte) Writer {
 
 // writing feature
 func (writer *Writer) WriteFeature(feature *geojson.Feature) {
-	bytevals,err := proto.Marshal(geobuf_raw.MakeFeature(feature))
-	if err != nil {
-		fmt.Println(err)
-	}
+	bytevals := geobuf_raw.WriteFeature(feature)
 	
 	// writing the appended bytevals to the writer
 

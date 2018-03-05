@@ -2,13 +2,11 @@ package geobuf_new
 
 import (
 	"github.com/murphy214/geobuf_new/geobuf_raw"
-	geo "github.com/murphy214/geobuf_new/geobuf_raw/geobuf"
 	"os"
 	"bufio"
 	//"io"
 	"bytes"
 	"fmt"
-	"github.com/golang/protobuf/proto"
 	"github.com/paulmach/go.geojson"
     "github.com/murphy214/protoscan"
 )
@@ -55,22 +53,12 @@ func (reader *Reader) Bytes() []byte {
 // alias for the Protobuf() method 
 // again more expressive for our use case
 func (reader *Reader) Feature() *geojson.Feature {
-	feature := &geo.Feature{}
-	err := proto.Unmarshal(reader.Bytes(),feature)
-	if err != nil {
-		fmt.Println(err)
-	}
-	return geobuf_raw.ReadFeature(feature)
+	return geobuf_raw.ReadFeature(reader.Bytes())
 }
 
 
 func ReadFeature(bytevals []byte) *geojson.Feature {
-	feature := &geo.Feature{}
-	err := proto.Unmarshal(bytevals,feature)
-	if err != nil {
-		fmt.Println(err)
-	}
-	return geobuf_raw.ReadFeature(feature)
+	return geobuf_raw.ReadFeature(bytevals)
 }
 
 
