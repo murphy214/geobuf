@@ -193,10 +193,17 @@ func MakeProperties(properties map[string]interface{}) map[string]*geo.Value {
 func MakeFeature(feat *geojson.Feature) *geo.Feature {
 	// getting geometry and geom type
 	geom,geom_type,bb := MakeGeom(feat.Geometry)
-
-	id,boolval := feat.ID.(uint64)
-
-
+	boolval := false
+	var id uint64
+	if feat.ID != nil {
+		vv := reflect.ValueOf(feat.ID)
+		kd := vv.Kind()
+		switch kd {
+		case reflect.Int,reflect.Int8,reflect.Int16,reflect.Int32,reflect.Int64,reflect.Uint,reflect.Uint8,reflect.Uint16,reflect.Uint32,reflect.Uint64:
+			boolval = true
+			id = uint64(vv.Int())
+		}
+	}
 	feature := &geo.Feature{
 				Geometry:geom,
 				Type:geom_type,

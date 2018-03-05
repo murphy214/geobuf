@@ -193,6 +193,19 @@ func ConvertGeobuf(infile string,outfile string) {
 	file.WriteString("]}")
 }
 
+type MapFunc func(feature *geojson.Feature) *geojson.Feature
+
+// function used for converting geojson to geobuf
+func MapGeobuf(infile string,newfile string,mapfunc MapFunc) {
+	geobuf := ReaderFile(infile)
+	geobuf2 := WriterFileNew(newfile)
+	for geobuf.Next() {
+		feature := geobuf.Feature()
+		feature = mapfunc(feature)
+		geobuf2.WriteFeature(feature)
+	}
+}
+
 
 func BenchmarkRead(filename_geojson string,filename_geobuf string) {
 	// swapping filenames if needed
