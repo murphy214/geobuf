@@ -56,7 +56,7 @@ I've taken steps to remove the protobuf implementation. I still utilize my own r
 
 # Performance
 
-Obviously at a single feature rate I/O is much much faster the problem previously was reading from a file iteratively was extremely hacky and I ended up splitting up code where I should have used an io.Reader. My new repo [protoscan](github.com/murphy214/protoscan) fixes this. 
+Obviously at a single feature rate I/O is much much faster the problem previously was reading from a file iteratively was extremely hacky and I ended up splitting up code where I should have used an io.Reader. My new repo [protoscan](http://github.com/murphy214/protoscan) fixes this. 
 
 Still as you can see as for a single feature read currently its > 10x faster. Of course this could vary drastically based on number of features vs. size of geometry etc but its a same assumption thats its much much faster for single feature reads.
 
