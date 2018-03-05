@@ -166,7 +166,7 @@ newbuf.WriteFeature(feature) // where feature is *geojson.Feature
 
 ```golang
 newbuf := WriterFileNew("newbuf.geobuf")
-newbuf.WriteFeature(bytearray) // where byte array is an array of a geobuf feauture
+newbuf.Write(bytearray) // where byte array is an array of a geobuf feauture
 ```
 
 ### Adding a buffer Writer to another Writer
