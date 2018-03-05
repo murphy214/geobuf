@@ -4,9 +4,8 @@ import (
 	"testing"
 	"github.com/paulmach/go.geojson"
 	"io/ioutil"
-	geo "github.com/murphy214/geobuf/geobuf_raw/geobuf"
-	"github.com/golang/protobuf/proto"
-	"fmt"
+	//geo "github.com/murphy214/geobuf/geobuf_raw"
+	//"fmt"
 	"github.com/murphy214/geobuf/geobuf_raw"
 )
 
@@ -29,7 +28,7 @@ func Benchmark_Read_FeatureCollection_New(b *testing.B) {
     b.ReportAllocs()
 
 	for n := 0; n < b.N; n++ {
-		geobuf := Reader_File("county.geobuf")
+		geobuf := ReaderFile("county.geobuf")
 		for geobuf.Next() {
 
 			geobuf.Feature()
@@ -52,12 +51,7 @@ func Benchmark_Read_Feature_Benchmark_New(b *testing.B) {
     b.ReportAllocs()
 
 	for n := 0; n < b.N; n++ {
-		features := &geo.Feature{}
-		err := proto.Unmarshal(feature_buf,features)
-		if err != nil {
-			fmt.Println(err)
-		}
-		geobuf_raw.ReadFeature(features)
+		geobuf_raw.ReadFeature(feature_buf)
 	}
 }
 

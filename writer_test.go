@@ -5,8 +5,8 @@ import (
 	"github.com/paulmach/go.geojson"
 	//"io/ioutil"
 	//geo "./geobuf_raw/geobuf"
-	"github.com/golang/protobuf/proto"
-	"fmt"
+	//"github.com/golang/protobuf/proto"
+	//"fmt"
 	"github.com/murphy214/geobuf/geobuf_raw"
 )
 
@@ -49,10 +49,7 @@ func Benchmark_Write_Feature_Benchmark_New(b *testing.B) {
     b.ReportAllocs()
 
 	for n := 0; n < b.N; n++ {
-		bytevals,err := proto.Marshal(geobuf_raw.MakeFeature(feature))
-		if err != nil {
-			fmt.Println(err)
-		}
+		bytevals := geobuf_raw.WriteFeature(feature)
 		
 		bytevals = append(
 							append(
