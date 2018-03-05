@@ -3,7 +3,7 @@ package main
 import (
   "fmt"
   "os"
-  g "github.com/murphy214/geobuf_new"
+  g "github.com/murphy214/geobuf"
   "github.com/urfave/cli"
 )
 

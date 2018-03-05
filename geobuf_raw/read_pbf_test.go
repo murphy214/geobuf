@@ -2,8 +2,7 @@ package geobuf_raw
 
 import (
 	//"github.com/murphy214/geobuf_new"
-	"github.com/murphy214/geobuf_new/geobuf_raw"
-	geo "github.com/murphy214/geobuf_new/geobuf_raw/geobuf"
+	"github.com/murphy214/geobuf/geobuf_raw"
 	"github.com/golang/protobuf/proto"
 	//"fmt"
 	"testing"

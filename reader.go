@@ -1,7 +1,7 @@
-package geobuf_new
+package geobuf
 
 import (
-	"github.com/murphy214/geobuf_new/geobuf_raw"
+	"github.com/murphy214/geobuf/geobuf_raw"
 	"os"
 	"bufio"
 	//"io"

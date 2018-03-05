@@ -1,4 +1,4 @@
-package geobuf_new
+package geobuf
 
 
 import (
