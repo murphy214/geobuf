@@ -26,6 +26,9 @@ enum GeomType {
 	POINT = 1;
 	LINESTRING = 2;
 	POLYGON = 3;
+	MULTIPOINT = 4;
+	MULTILINESTRING = 5;
+	MULTIPOLYGON = 6;
 }
 
 message Feature {
@@ -45,43 +48,33 @@ message FeatureCollection {
 
 #### How do Geojson Features and Geobuf Features Differ
 
-As you can see not by much, firstly I currently implement a scorched earth approach to multi geometries. That means polygons can be represented easily with only one number indicating the ring size and points / lines are fine converted into uint64 with of course the usual delta-encoding. The map of properties has a value as the value instead of normally and interface, but other than that its basically the same. 
+Geobuf is mean to be as close to a 1 to 1 geojson mapping as possible. Geobuf's geometry implementation uses delta encoding at a precision of 10e-7 which is like a few cm I think. Your file size mileage may very depending on your number of fields if you have a large number of fields like 50 in each feature your going to probably have a slighly bigger file than geojson but if you have like 5 and largeish geometries (not points) you should see a pretty signicant file size decrease. 
 
-**While the implementation details are worth explaining for end-user purposes you will never see a geobuf feature.**
+#### If it is based on a protobuf where is it? 
+
+I've taken steps to remove the protobuf implementation. I still utilize my own reader and writer which is a little faster 30-50% but its mainly so that I can wrap the methods for creating the geometries in such within the read and the write. In the previous implementation you had to go from geojson to geobuf feature, although the end user couldn't see it this was a pretty needless allocation. Also Implementing my own reader / writer will allow me to do pretty cool thing with creating vector tiles which I'll detail somewhere else.
 
 # Performance
 
 Obviously at a single feature rate I/O is much much faster the problem previously was reading from a file iteratively was extremely hacky and I ended up splitting up code where I should have used an io.Reader. My new repo [protoscan](github.com/murphy214/protoscan) fixes this. 
 
-### Benchmarks on a Single Feature I/O 
+Still as you can see as for a single feature read currently its > 10x faster. Of course this could vary drastically based on number of features vs. size of geometry etc but its a same assumption thats its much much faster for single feature reads.
 
-**NOTE: This was done on one feature and not across multiple different types of features with varying degrees of vertices geometry types and number of properties, in other words this is just a rought idea**]
+However the FeatureCollection aren't exactly a one to one comparison as one is reading iteratively (geobuf) and another is reading the entire collection an once. A more close comparison would be line delimited geojson to geobuf which I may do later. 
 
 ```
 goos: darwin
 goarch: amd64
-pkg: github.com/murphy214/geobuf_new
-Benchmark_Make_Feature-8        	   30000	     51504 ns/op	   14048 B/op	     553 allocs/op
-Benchmark_Write_Feature_Old-8   	   10000	    222587 ns/op	   26776 B/op	      23 allocs/op
-Benchmark_Write_Feature_New-8   	   30000	     58234 ns/op	   21520 B/op	     556 allocs/op
-Benchmark_Read_Feature-8        	   30000	     52071 ns/op	   16232 B/op	     555 allocs/op
-Benchmark_Read_Feature_Old-8    	    5000	    346338 ns/op	   64440 B/op	    2239 allocs/op
-Benchmark_Read_Feature_New-8    	   30000	     57927 ns/op	   33072 B/op	     574 allocs/op
+pkg: github.com/murphy214/geobuf
+Benchmark_Read_FeatureCollection_Old-8    	      10	 137046994 ns/op	21370684 B/op	  638656 allocs/op
+Benchmark_Read_FeatureCollection_New-8    	   50000	     24610 ns/op	   78248 B/op	       9 allocs/op
+Benchmark_Read_Feature_Benchmark_Old-8    	    5000	    360952 ns/op	   70968 B/op	    2240 allocs/op
+Benchmark_Read_Feature_Benchmark_New-8    	   50000	     27324 ns/op	   11856 B/op	     282 allocs/op
+Benchmark_Write_Feature_Benchmark_Old-8   	    5000	    246050 ns/op	   26776 B/op	      23 allocs/op
+Benchmark_Write_Feature_Benchmark_New-8   	   30000	     52173 ns/op	   19952 B/op	     564 allocs/op
 PASS
+ok  	github.com/murphy214/geobuf	9.893s
 ```
-### Benchmarks on a Large Feature Collection 
-
-In this set of benchmarks I take a 180 mb geojson file consisting of roadways in wv, and read it via the normal geojson api and then the new geobuf way. File size comparison is 180 mb to 140 mb but thats because these are really property dense features, for a counties data set with 5 properties it was 2.2 mb to 750 kb. 
-
-```
-goarch: amd64
-Benchmark_Read_FeatureCollection_Old-8   	       1	10830813046 ns/op	1844656296 B/op	49786498 allocs/op
-Benchmark_Read_FeatureCollection_New-8   	       1	3920783447 ns/op	2037390840 B/op	21596805 allocs/op
-PASS
-```
-
-**As you can see its not only signicantly faster (2-3x) while also being 2-3x smaller allocations an operation its overall memory footprint (which isn't measured) is basically nothing, as each single feature is being read in sequentially.**
-
 
 
 # Differences between previous implementation
