@@ -182,7 +182,7 @@ newbuf.AddGeobuf(oldbuf) // where old buf is a buf geobuf
 
 Sometimes we may want to take something that use to be a writer and immediately use it as a reader this can be done using the reader method.
 
-```
+```golang
 newbufwriter := WriterFileNew("newbuf.geobuf")
 newbufreader := newbufwriter.Reader()
 ```
