@@ -76,6 +76,116 @@ PASS
 ok  	github.com/murphy214/geobuf	9.893s
 ```
 
+# Usage
+
+Below I gave a few of the mainline apis for geobuf and how they are used.
+
+# The Reader API
+
+The reader api is pretty simple, nothing to crazy going on here the implementation is pretty simple really.
+
+### Reading a Geobuf File
+
+The reader api is pretty straight forward as you can see below.
+
+```golang
+package main
+
+import (
+	g "github.com/murphy214/geobuf"
+}
+
+func main() {
+	// reading geobuf from file
+	buf := g.ReaderFile("wv.geobuf")
+	for buf.Next() {
+		// do something with the feature here
+		buf.Feature()
+	}
+}
+```
+
+### Reading from a Geobuf Buffer (byte array)
+
+```golang
+// reading geobuf from a []byte array
+bytevals,_ := ioutil.ReadFile("wv.geobuf")
+buf := g.ReaderBuf(bytevals)
+for buf.Next() {
+	buf.Feature()
+}
+```
+
+### Using the Reader To Only Return Byte Arrays of a Feature
+```golang
+// as you can see both readers are implemented the exact same way but you can also
+// retrieve the raw bytevalues of a reader by doing this
+buf = g.ReaderBuf(bytevals)
+for buf.Next() {
+	// do somethign with raw byte values
+	buf.Bytes()
+}
+```
+
+### Resetting a Reader so That it can be read again
+
+As you might have guessed geobuf readers are pretty stateful to some degree so to read on the same reader twice you must reset it. 
+
+```golang
+// resetting a reader so that it can be read again
+buf = g.ReaderBuf(bytevals)
+for buf.Next() {
+	// do somethign with raw byte values
+	buf.Bytes()
+}
+// resetting reader here
+buf.Reset()
+
+// readiing the same buffer
+buf = g.ReaderBuf(bytevals)
+for buf.Next() {
+	// do somethign with raw byte values
+	buf.Bytes()
+}
+```
+
+# The Writer Api 
+
+There are 4 functions to instantiate the writer api being: ```WriterFile(filename)```,```WriterFileNew(filename)```,```WriterBuf(bytearray)```,```WriterBufNew()``` these methods are pretty self explanatory on what they do and how they differ. 
+
+The writer api has a little more going on in terms of complexity and useful methods so I'll go over some.
+
+### Writing to a Geobuf from Geojson Features
+
+```golang
+newbuf := WriterFileNew("newbuf.geobuf")
+newbuf.WriteFeature(feature) // where feature is *geojson.Feature
+```
+
+### Writing to a Geobuf from a Geobuf Feature Byte Array
+
+```golang
+newbuf := WriterFileNew("newbuf.geobuf")
+newbuf.WriteFeature(bytearray) // where byte array is an array of a geobuf feauture
+```
+
+### Adding a buffer Writer to another Writer
+
+Sometimes you may want to write one geobuf to another, while currently I don't implement this for file geobuf (it could be done) it does work if the geobuf your wanting to add is a buffer. 
+
+```golang
+newbuf := WriterFileNew("newbuf.geobuf")
+newbuf.AddGeobuf(oldbuf) // where old buf is a buf geobuf
+```
+
+### Converting a Writer Geobuf to a Reader Geobuf
+
+Sometimes we may want to take something that use to be a writer and immediately use it as a reader this can be done using the reader method.
+
+```
+newbufwriter := WriterFileNew("newbuf.geobuf")
+newbufreader := newbufwriter.Reader()
+```
 
 # Differences between previous implementation
 
