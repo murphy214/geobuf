@@ -16,14 +16,14 @@ type Reader struct {
 	FileBool bool
 	Reader *protoscan.ProtobufScanner
 	Filename string
-	Feature_Bytes []byte
-	IO *bufio.Reader
 	File *os.File
+	Buf []byte
 }
 
 // creates a reader for a byte array
-func ReaderBytes(bytevals []byte) *Reader {
-	return &Reader{Reader:protoscan.NewProtobufScanner(bytes.NewReader(bytevals)),FileBool:false}
+func ReaderBuf(bytevals []byte) *Reader {
+	buffer := bytes.NewReader(bytevals)
+	return &Reader{Reader:protoscan.NewProtobufScanner(buffer),Buf:bytevals,FileBool:false}
 }
 
 // creates a reader for file
@@ -66,10 +66,24 @@ func ReadFeature(bytevals []byte) *geojson.Feature {
 
 func (reader *Reader) ReadAll() []*geojson.Feature {
 	feats := []*geojson.Feature{}
-	fmt.Println(reader.Next())
 	for reader.Next() {
 		feats = append(feats,reader.Feature())
 	}
 	return feats
+}
+
+// resets a reader to be read again
+func (reader *Reader) Reset() {
+	if reader.FileBool {
+		file,err := os.Open(reader.Filename)
+		if err != nil {
+			fmt.Println(err)
+		}
+		read := bufio.NewReader(file)
+		reader.Reader = protoscan.NewProtobufScanner(read)
+	} else {
+		buffer := bytes.NewReader(reader.Buf)
+		reader.Reader = protoscan.NewProtobufScanner(buffer)
+	}
 }
 

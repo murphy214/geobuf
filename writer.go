@@ -7,6 +7,7 @@ import (
 	//"io"
 	"bytes"
 	"fmt"
+	//"github.com/murphy214/protoscan"
 	//"github.com/golang/protobuf/proto"
 	"github.com/paulmach/go.geojson"
 )
@@ -82,6 +83,36 @@ func (writer *Writer) WriteFeature(feature *geojson.Feature) {
     }
 }
 
+// writes a set of byte values representing a feature 
+// to the underlying writer
+func (writer *Writer) Write(bytevals []byte) {
+	bytevals = append(
+						append(
+							[]byte{10},EncodeVarint(uint64(len(bytevals)))...
+						),
+					bytevals...)
+	if writer.FileBool {
+		writer.File.Write(bytevals)
+	} else {
+		writer.Writer.Write(bytevals)
+    }	
+}
+
+// adds a geobuf buffer value to an existing geobuf
+func (writer *Writer) AddGeobuf(buf *Writer) {
+	if !buf.FileBool {
+		buf.Writer.Flush()
+		buf.Writer = bufio.NewWriter(buf.Buffer)
+		if writer.FileBool {
+			writer.File.Write(buf.Buffer.Bytes())
+		} else {
+			writer.Writer.Write(buf.Buffer.Bytes())
+		}
+	}
+}
+
+// returns the bytes present in an underlying 
+// writer type buffer
 func (writer *Writer) Bytes() []byte {
 	// 
 	if !writer.FileBool {
@@ -93,7 +124,20 @@ func (writer *Writer) Bytes() []byte {
 	return []byte{}
 }
 
-//func (writer *Writer) WriteFeature(feature *geojson.Feature) {
+// converts a writer into a reader
+func (writer *Writer) Reader() *Reader {
+	if !writer.FileBool {
+		newreader := ReaderBuf(writer.Bytes())
+		return newreader
+	} else {
+		writer.File.Close()
+		newreader := ReaderFile(writer.Filename)
+		return newreader
+	}
+	return &Reader{}
+}
+
+
 
 
 
