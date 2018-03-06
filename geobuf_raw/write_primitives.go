@@ -4,8 +4,11 @@ package geobuf_raw
 import (
 	"math"
 	"reflect"
+	"github.com/murphy214/pbf"
 )
  
+
+var powerfactor = math.Pow(10.0,7.0)
 
 // encodes a var int for 32 bit number
 func EncodeVarint32(x uint32) []byte {
@@ -42,7 +45,7 @@ func AppendAll(b ...[]byte) []byte {
 // this function was benchmarked against several implementations
 // to reduce allocations, i found this one to be the best
 func WritePackedUint64(geom []uint64) []byte {
-	buf := make([]byte,len(geom)*4 + 8)
+	buf := make([]byte,len(geom)*8 + 8)
 	pos := 8
 	for _,x := range geom {
 		for x > 127 {
@@ -53,7 +56,7 @@ func WritePackedUint64(geom []uint64) []byte {
 		buf[pos] = uint8(x)
 		pos++
 	}
-	beg := EncodeVarint(uint64(pos-8))
+	beg := pbf.EncodeVarint(uint64(pos-8))
 	startpos := 8 - len(beg)
 	currentpos := startpos
 	i := 0
@@ -65,6 +68,8 @@ func WritePackedUint64(geom []uint64) []byte {
 
 	return buf[startpos:pos]
 }
+
+const maxVarintBytes = 10
 
 
 // encodes are var int value
@@ -118,11 +123,11 @@ func WriteValue(value interface{}) []byte {
 	case reflect.String:
 		if len(vv.String()) > 0 {	
 			size := uint64(len(vv.String()))
-			size_bytes := EncodeVarint(size)
+			size_bytes := pbf.EncodeVarint(size)
 			bytevals := []byte{10}
 			bytevals = append(bytevals,size_bytes...)
 			bytevals = append(bytevals,[]byte(vv.String())...)
-			bytevals = append(EncodeVarint(uint64(len(bytevals))),bytevals...)
+			bytevals = append(pbf.EncodeVarint(uint64(len(bytevals))),bytevals...)
 			return append([]byte{18},bytevals...)
 		}
 	case reflect.Float32:

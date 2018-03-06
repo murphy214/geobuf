@@ -4,6 +4,7 @@ import (
 	"math"
 	"github.com/paulmach/go.geojson"
 	"reflect"
+	"github.com/murphy214/pbf"
 )
 
 
@@ -182,10 +183,10 @@ func MakeMultiPolygon(multipolygon [][][][]float64) ([]byte,[]int64) {
 func MakeKeyValue(key string,value interface{}) []byte {
 	array1 := []byte{18}
 	array3 := []byte{10}
-	array4 := EncodeVarint(uint64(len(key)))
+	array4 := pbf.EncodeVarint(uint64(len(key)))
 	array5 := []byte(key)
 	array6 := WriteValue(value)
-	array2 := EncodeVarint(uint64(len(array3)+len(array4)+len(array5)+len(array6)))
+	array2 := pbf.EncodeVarint(uint64(len(array3)+len(array4)+len(array5)+len(array6)))
 	return AppendAll(array1,array2,array3,array4,array5,array6)
 
 }
@@ -199,7 +200,7 @@ func WriteFeature(feat  *geojson.Feature) []byte {
 		kd := vv.Kind()
 		switch kd {
 		case reflect.Int,reflect.Int8,reflect.Int16,reflect.Int32,reflect.Int64,reflect.Uint,reflect.Uint8,reflect.Uint16,reflect.Uint32,reflect.Uint64:
-			newbytes = append(newbytes,EncodeVarint(uint64(vv.Int()))...)
+			newbytes = append(newbytes,pbf.EncodeVarint(uint64(vv.Int()))...)
 		}
 	} else {
 		newbytes = []byte{}
@@ -209,37 +210,38 @@ func WriteFeature(feat  *geojson.Feature) []byte {
 	for k,v := range feat.Properties {
 		newbytes = append(newbytes,MakeKeyValue(k,v)...)
 	}
+	if feat.Geometry != nil {
+		switch feat.Geometry.Type {
+		case "Point":
+			// 
+			newbytes = append(newbytes,[]byte{24,1}...)
+			geomb := MakePoint(feat.Geometry.Point)
+			newbytes = append(newbytes,geomb...)
+		case "LineString":
+			// 
+			newbytes = append(newbytes,[]byte{24,2}...)
+			geomb,_ := MakeLine(feat.Geometry.LineString)
+			newbytes = append(newbytes,geomb...)
 
-	switch feat.Geometry.Type {
-	case "Point":
-		// 
-		newbytes = append(newbytes,[]byte{24,1}...)
-		geomb := MakePoint(feat.Geometry.Point)
-		newbytes = append(newbytes,geomb...)
-	case "LineString":
-		// 
-		newbytes = append(newbytes,[]byte{24,2}...)
-		geomb,_ := MakeLine(feat.Geometry.LineString)
-		newbytes = append(newbytes,geomb...)
-
-	case "Polygon":
-		// here
-		newbytes = append(newbytes,[]byte{24,3}...)
-		geomb,_ := MakePolygon(feat.Geometry.Polygon)
-		newbytes = append(newbytes,geomb...)
-	case "MultiPoint":
-		// here
-		newbytes = append(newbytes,[]byte{24,4}...)
-		geomb,_ := MakeLine(feat.Geometry.MultiPoint)
-		newbytes = append(newbytes,geomb...)
-	case "MultiLineString":
-		newbytes = append(newbytes,[]byte{24,5}...)
-		geomb,_ := MakePolygon(feat.Geometry.MultiLineString)
-		newbytes = append(newbytes,geomb...)
-	case "MultiPolygon":
-		newbytes = append(newbytes,[]byte{24,6}...)
-		geomb,_ := MakeMultiPolygon(feat.Geometry.MultiPolygon)
-		newbytes = append(newbytes,geomb...) 
+		case "Polygon":
+			// here
+			newbytes = append(newbytes,[]byte{24,3}...)
+			geomb,_ := MakePolygon(feat.Geometry.Polygon)
+			newbytes = append(newbytes,geomb...)
+		case "MultiPoint":
+			// here
+			newbytes = append(newbytes,[]byte{24,4}...)
+			geomb,_ := MakeLine(feat.Geometry.MultiPoint)
+			newbytes = append(newbytes,geomb...)
+		case "MultiLineString":
+			newbytes = append(newbytes,[]byte{24,5}...)
+			geomb,_ := MakePolygon(feat.Geometry.MultiLineString)
+			newbytes = append(newbytes,geomb...)
+		case "MultiPolygon":
+			newbytes = append(newbytes,[]byte{24,6}...)
+			geomb,_ := MakeMultiPolygon(feat.Geometry.MultiPolygon)
+			newbytes = append(newbytes,geomb...) 
+		}
 	}
 	return newbytes
 }

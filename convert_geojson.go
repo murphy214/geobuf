@@ -111,7 +111,7 @@ func (geojsonfile *Geojson_File) ReadChunk(size int) []string {
 }
 
 // adds featuers
-func AddFeatures(geobuf Writer,feats []string,count int,s time.Time) int {
+func AddFeatures(geobuf *Writer,feats []string,count int,s time.Time) int {
 	var wg sync.WaitGroup
 	for _,i := range feats {
 		wg.Add(1)

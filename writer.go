@@ -7,6 +7,7 @@ import (
 	//"io"
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	//"github.com/murphy214/protoscan"
 	//"github.com/golang/protobuf/proto"
 	"github.com/paulmach/go.geojson"
@@ -36,33 +37,33 @@ type Writer struct {
 }
 
 // creates a writer struct
-func WriterFileNew(filename string) Writer {
+func WriterFileNew(filename string) *Writer {
 	file,err := os.Create(filename)
 	if err != nil {
 		fmt.Println(err)
 	}
-	return Writer{Filename:filename,Writer:bufio.NewWriter(file),FileBool:true,File:file}
+	return &Writer{Filename:filename,Writer:bufio.NewWriter(file),FileBool:true,File:file}
 }
 
 // creates a writer struct
-func WriterFile(filename string) Writer {
+func WriterFile(filename string) *Writer {
 	file,err := os.OpenFile(filename,os.O_APPEND|os.O_RDWR, os.ModeAppend)
 	if err != nil {
 		fmt.Println(err)
 	}
-	return Writer{Filename:filename,Writer:bufio.NewWriter(file),FileBool:true,File:file}
+	return &Writer{Filename:filename,Writer:bufio.NewWriter(file),FileBool:true,File:file}
 }
 
 // creates a writer buffer new
-func WriterBufNew() Writer {
+func WriterBufNew() *Writer {
     var b bytes.Buffer
-    return Writer{Writer:bufio.NewWriter(&b),Buffer:&b,FileBool:false}
+    return &Writer{Writer:bufio.NewWriter(&b),Buffer:&b,FileBool:false}
 }	
 
 // creates a writer buffer 
-func WriterBuf(bytevals []byte) Writer {
+func WriterBuf(bytevals []byte) *Writer {
 	buffer := bytes.NewBuffer(bytevals)
-    return Writer{Writer:bufio.NewWriter(buffer),Buffer:buffer,FileBool:false}
+    return &Writer{Writer:bufio.NewWriter(buffer),Buffer:buffer,FileBool:false}
 }	
 
 // writing feature
@@ -102,7 +103,7 @@ func (writer *Writer) Write(bytevals []byte) {
 func (writer *Writer) AddGeobuf(buf *Writer) {
 	if !buf.FileBool {
 		buf.Writer.Flush()
-		buf.Writer = bufio.NewWriter(buf.Buffer)
+		//buf.Writer = bufio.NewWriter(buf.Buffer)
 		if writer.FileBool {
 			writer.File.Write(buf.Buffer.Bytes())
 		} else {
@@ -120,6 +121,10 @@ func (writer *Writer) Bytes() []byte {
 		writer.Writer = bufio.NewWriter(writer.Buffer)
 		return writer.Buffer.Bytes()
 
+	} else {
+		writer.File.Close()
+		bytevals,_ := ioutil.ReadFile(writer.Filename)
+		return bytevals
 	}
 	return []byte{}
 }

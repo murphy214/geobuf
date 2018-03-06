@@ -2,54 +2,55 @@ package geobuf_raw
 
 import (
 	"github.com/paulmach/go.geojson"
+	"github.com/murphy214/pbf"
 )
 
 
 
 // reads a feature
 func ReadFeature(bytevals []byte) *geojson.Feature {
-	pbf := PBF{Pbf:bytevals,Length:len(bytevals)}
+	pbfval := pbf.PBF{Pbf:bytevals,Length:len(bytevals)}
 	var geomtype string
 	feature := &geojson.Feature{Properties:map[string]interface{}{}}
 
-	key,val := pbf.ReadKey()
+	key,val := pbfval.ReadKey()
 	if key == 1 && val == 0 {
-		feature.ID = pbf.ReadVarint()
-		key,val = pbf.ReadKey()
+		feature.ID = pbfval.ReadVarint()
+		key,val = pbfval.ReadKey()
 	}
 	for key == 2 && val == 2 {
 		// starting properties shit here
 
-		size := pbf.ReadVarint()
-		endpos := pbf.Pos + size
-		//pbf.ReadKey()
-		pbf.Pos += 1
-		keyvalue := pbf.ReadString()
+		size := pbfval.ReadVarint()
+		endpos := pbfval.Pos + size
+		//pbfval.ReadKey()
+		pbfval.Pos += 1
+		keyvalue := pbfval.ReadString()
 
-		pbf.Pos += 1
-		pbf.ReadVarint()
-		newkey,_ := pbf.ReadKey()
+		pbfval.Pos += 1
+		pbfval.ReadVarint()
+		newkey,_ := pbfval.ReadKey()
 		switch newkey {
 		case 1:
-			feature.Properties[keyvalue] = pbf.ReadString()			
+			feature.Properties[keyvalue] = pbfval.ReadString()			
 		case 2:
-			feature.Properties[keyvalue] = pbf.ReadFloat()			
+			feature.Properties[keyvalue] = pbfval.ReadFloat()			
 		case 3:
-			feature.Properties[keyvalue] = pbf.ReadDouble()			
+			feature.Properties[keyvalue] = pbfval.ReadDouble()			
 		case 4:
-			feature.Properties[keyvalue] = pbf.ReadInt64()			
+			feature.Properties[keyvalue] = pbfval.ReadInt64()			
 		case 5:
-			feature.Properties[keyvalue] = pbf.ReadUInt64()			
+			feature.Properties[keyvalue] = pbfval.ReadUInt64()			
 		case 6:
-			feature.Properties[keyvalue] = pbf.ReadUInt64()			
+			feature.Properties[keyvalue] = pbfval.ReadUInt64()			
 		case 7:
-			feature.Properties[keyvalue] = pbf.ReadBool()			
+			feature.Properties[keyvalue] = pbfval.ReadBool()			
 		}
-		pbf.Pos = endpos
-		key,val = pbf.ReadKey()
+		pbfval.Pos = endpos
+		key,val = pbfval.ReadKey()
 	}
 	if key == 3 && val == 0 {
-		switch int(pbf.Pbf[pbf.Pos]) {
+		switch int(pbfval.Pbf[pbfval.Pos]) {
 		case 1:
 			geomtype = "Point"
 		case 2:
@@ -63,33 +64,33 @@ func ReadFeature(bytevals []byte) *geojson.Feature {
 		case 6:
 			geomtype = "MultiPolygon"
 		}
-		pbf.Pos += 1
-		key,val = pbf.ReadKey()
+		pbfval.Pos += 1
+		key,val = pbfval.ReadKey()
 	}
 	if key == 4 && val == 2 {
-		size := pbf.ReadVarint()
-		endpos := pbf.Pos + size
+		size := pbfval.ReadVarint()
+		endpos := pbfval.Pos + size
 
 		switch geomtype {
 		case "Point":
-			feature.Geometry = geojson.NewPointGeometry(pbf.ReadPoint(endpos))
+			feature.Geometry = geojson.NewPointGeometry(pbfval.ReadPoint(endpos))
 		case "LineString":
-			feature.Geometry = geojson.NewLineStringGeometry(pbf.ReadLine(0,endpos))
+			feature.Geometry = geojson.NewLineStringGeometry(pbfval.ReadLine(0,endpos))
 		case "Polygon":
-			feature.Geometry = geojson.NewPolygonGeometry(pbf.ReadPolygon(endpos))
+			feature.Geometry = geojson.NewPolygonGeometry(pbfval.ReadPolygon(endpos))
 		case "MultiPoint":
-			feature.Geometry = geojson.NewMultiPointGeometry(pbf.ReadLine(0,endpos)...)
+			feature.Geometry = geojson.NewMultiPointGeometry(pbfval.ReadLine(0,endpos)...)
 		case "MultiLineString":
-			feature.Geometry = geojson.NewMultiLineStringGeometry(pbf.ReadPolygon(endpos)...)			
+			feature.Geometry = geojson.NewMultiLineStringGeometry(pbfval.ReadPolygon(endpos)...)			
 		case "MultiPolygon":
-			feature.Geometry = geojson.NewMultiPolygonGeometry(pbf.ReadMultiPolygon(endpos)...)			
+			feature.Geometry = geojson.NewMultiPolygonGeometry(pbfval.ReadMultiPolygon(endpos)...)			
 
 		}
-		key,val = pbf.ReadKey()
+		key,val = pbfval.ReadKey()
 
 	}
 	if key == 5 && val == 2 {
-		feature.BoundingBox = pbf.ReadBoundingBox()
+		feature.BoundingBox = pbfval.ReadBoundingBox()
 	}
 	return feature
 }
