@@ -18,17 +18,18 @@ func BenchmarkReadFeatureCollection(b *testing.B) {
 	b.ReportAllocs()
 
 	for n := 0; n < b.N; n++ {
-		bytevals, _ := ioutil.ReadFile("wv.geojson")
+		bytevals, _ := ioutil.ReadFile("test_data/county.geojson")
 		//fmt.Println(string(bytevals))
 		geojson.UnmarshalFeatureCollection(bytevals)
 	}
 }
 
+// this benchmakrs a write feature collection
 func BenchmarkReadFeatureCollectionLineDelimitted(b *testing.B) {
 	b.ReportAllocs()
 
 	for n := 0; n < b.N; n++ {
-		ld := ld_geojson.Read_LD_Geojson("ld_wv.geojson")
+		ld := ld_geojson.Read_LD_Geojson("test_data/ld.geojson")
 		for ld.Next() {
 
 			ld.Feature()
@@ -38,11 +39,12 @@ func BenchmarkReadFeatureCollectionLineDelimitted(b *testing.B) {
 	}
 }
 
+// this benchmarks a read feature collection
 func BenchmarkReadFeatureCollectionGeobuf(b *testing.B) {
 	b.ReportAllocs()
 
 	for n := 0; n < b.N; n++ {
-		geobuf := ReaderFile("wv.geobuf")
+		geobuf := ReaderFile("test_data/county.geobuf")
 		for geobuf.Next() {
 
 			geobuf.Feature()
@@ -51,6 +53,7 @@ func BenchmarkReadFeatureCollectionGeobuf(b *testing.B) {
 	}
 }
 
+// this benchmarks a feature write
 func Benchmark_Read_Feature_Benchmark_Old(b *testing.B) {
 	b.ReportAllocs()
 
@@ -59,6 +62,7 @@ func Benchmark_Read_Feature_Benchmark_Old(b *testing.B) {
 	}
 }
 
+// this benchmarks a feature read
 func Benchmark_Read_Feature_Benchmark_New(b *testing.B) {
 	b.ReportAllocs()
 
