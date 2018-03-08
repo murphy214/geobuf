@@ -4,9 +4,18 @@ import (
 	"fmt"
 	"github.com/paulmach/go.geojson"
 	"io/ioutil"
+	"math"
 	"os"
 	"testing"
 )
+
+func DeltaPt(pt []float64, testpt []float64) float64 {
+	deltax := math.Abs(pt[0] - testpt[0])
+	deltay := math.Abs(pt[1] - testpt[1])
+	return deltax + deltay
+}
+
+var PrecisionError = math.Pow(10.0, -6.0)
 
 // this function tests whether a all geojson features are maintained on a read write
 func TestReadWriteFile(t *testing.T) {
@@ -20,6 +29,11 @@ func TestReadWriteFile(t *testing.T) {
 	fc, err := geojson.UnmarshalFeatureCollection(bytevals)
 	if err != nil {
 		fmt.Println(err)
+	}
+
+	featuremap := map[int]*geojson.Feature{}
+	for _, feature := range fc.Features {
+		featuremap[int(feature.ID.(float64))] = feature
 	}
 
 	// gettting the size of the feature collection
@@ -39,7 +53,32 @@ func TestReadWriteFile(t *testing.T) {
 	// reading each feature
 	size_buf := 0
 	for readbuf.Next() {
-		readbuf.Feature()
+		feature := readbuf.Feature()
+		id := int(feature.ID.(int))
+		testfeature := featuremap[id]
+		if testfeature.Geometry.Type == feature.Geometry.Type {
+			for i := range testfeature.Geometry.Polygon {
+				testring := testfeature.Geometry.Polygon[i]
+				ring := feature.Geometry.Polygon[i]
+				if len(ring) != len(testring) {
+					t.Errorf("Different ring sizes expected %d got %d", len(testring), len(ring))
+				} else {
+					for j := range ring {
+						pt := ring[j]
+						testpt := testring[j]
+						deltapt := DeltaPt(pt, testpt)
+						if PrecisionError < deltapt {
+							t.Errorf("Different Points expected %v %v", testpt, pt)
+						}
+
+					}
+
+				}
+			}
+		} else {
+			t.Errorf("Different Types")
+		}
+
 		size_buf++
 	}
 
@@ -64,6 +103,11 @@ func TestReadWriteBuf(t *testing.T) {
 		fmt.Println(err)
 	}
 
+	featuremap := map[int]*geojson.Feature{}
+	for _, feature := range fc.Features {
+		featuremap[int(feature.ID.(float64))] = feature
+	}
+
 	// gettting the size of the feature collection
 	size_fc := len(fc.Features)
 
@@ -81,7 +125,32 @@ func TestReadWriteBuf(t *testing.T) {
 	// reading each feature
 	size_buf := 0
 	for readbuf.Next() {
-		readbuf.Feature()
+		feature := readbuf.Feature()
+		id := int(feature.ID.(int))
+		testfeature := featuremap[id]
+		if testfeature.Geometry.Type == feature.Geometry.Type {
+			for i := range testfeature.Geometry.Polygon {
+				testring := testfeature.Geometry.Polygon[i]
+				ring := feature.Geometry.Polygon[i]
+				if len(ring) != len(testring) {
+					t.Errorf("Different ring sizes expected %d got %d", len(testring), len(ring))
+				} else {
+					for j := range ring {
+						pt := ring[j]
+						testpt := testring[j]
+						deltapt := DeltaPt(pt, testpt)
+						if PrecisionError < deltapt {
+							t.Errorf("Different Points expected %v %v", testpt, pt)
+						}
+
+					}
+
+				}
+			}
+		} else {
+			t.Errorf("Different Types")
+		}
+
 		size_buf++
 	}
 
@@ -133,6 +202,11 @@ func TestReadWriteMultiBufFile(t *testing.T) {
 		fmt.Println(err)
 	}
 
+	featuremap := map[int]*geojson.Feature{}
+	for _, feature := range fc.Features {
+		featuremap[int(feature.ID.(float64))] = feature
+	}
+
 	// gettting the size of the feature collection
 	size_fc := len(fc.Features)
 
@@ -175,9 +249,35 @@ func TestReadWriteMultiBufFile(t *testing.T) {
 	bigbufreader := bigbuffer.Reader()
 
 	// reading each feature
+	// reading each feature
 	size_buf := 0
 	for bigbufreader.Next() {
-		bigbufreader.Feature()
+		feature := bigbufreader.Feature()
+		id := int(feature.ID.(int))
+		testfeature := featuremap[id]
+		if testfeature.Geometry.Type == feature.Geometry.Type {
+			for i := range testfeature.Geometry.Polygon {
+				testring := testfeature.Geometry.Polygon[i]
+				ring := feature.Geometry.Polygon[i]
+				if len(ring) != len(testring) {
+					t.Errorf("Different ring sizes expected %d got %d", len(testring), len(ring))
+				} else {
+					for j := range ring {
+						pt := ring[j]
+						testpt := testring[j]
+						deltapt := DeltaPt(pt, testpt)
+						if PrecisionError < deltapt {
+							t.Errorf("Different Points expected %v %v", testpt, pt)
+						}
+
+					}
+
+				}
+			}
+		} else {
+			t.Errorf("Different Types")
+		}
+
 		size_buf++
 	}
 
@@ -202,6 +302,11 @@ func TestReadWriteMultiBuf(t *testing.T) {
 	fc, err := geojson.UnmarshalFeatureCollection(bytevals)
 	if err != nil {
 		fmt.Println(err)
+	}
+
+	featuremap := map[int]*geojson.Feature{}
+	for _, feature := range fc.Features {
+		featuremap[int(feature.ID.(float64))] = feature
 	}
 
 	// gettting the size of the feature collection
@@ -248,7 +353,32 @@ func TestReadWriteMultiBuf(t *testing.T) {
 	// reading each feature
 	size_buf := 0
 	for bigbufreader.Next() {
-		bigbufreader.Feature()
+		feature := bigbufreader.Feature()
+		id := int(feature.ID.(int))
+		testfeature := featuremap[id]
+		if testfeature.Geometry.Type == feature.Geometry.Type {
+			for i := range testfeature.Geometry.Polygon {
+				testring := testfeature.Geometry.Polygon[i]
+				ring := feature.Geometry.Polygon[i]
+				if len(ring) != len(testring) {
+					t.Errorf("Different ring sizes expected %d got %d", len(testring), len(ring))
+				} else {
+					for j := range ring {
+						pt := ring[j]
+						testpt := testring[j]
+						deltapt := DeltaPt(pt, testpt)
+						if PrecisionError < deltapt {
+							t.Errorf("Different Points expected %v %v", testpt, pt)
+						}
+
+					}
+
+				}
+			}
+		} else {
+			t.Errorf("Different Types")
+		}
+
 		size_buf++
 	}
 
