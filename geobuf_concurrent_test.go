@@ -14,13 +14,8 @@ func I() int {
 	ld.Convert_FeatureCollection("test_data/wv.geojson", "test_data/wv_ld.geojson")
 	return 0
 }
-func B() int {
-	ConvertGeojson("test_data/wv.geojson", "test_data/wv.geobuf")
-	return 0
-}
 
 var _ = I()
-var _ = B()
 
 /*
 All benchmarks are on a 178 mb geojson roads file of west virginia.byte
@@ -74,5 +69,4 @@ func BenchmarkGeobufConcurrentRead(b *testing.B) {
 			buff.Feature()
 		}
 	}
-	os.Remove("test_data.wv.geobuf")
 }
