@@ -38,7 +38,6 @@ func (reader *Reader_Concurrent_Function) Increment() bool {
 func (reader *Reader_Concurrent_Function) Defer() {
 	reader.Pos++
 	reader.Count--
-
 }
 
 // a masking function
