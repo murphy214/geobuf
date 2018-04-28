@@ -1,82 +1,37 @@
-# geobuf_new
+# Geobuf - A geojson interchange format based on protocol buffers, for large bulk geojson feature processing
 
 # What is it?
 
-Protobuf representation of geojson features is something I've been trying for a while now. Previously things like not being able to implement bufio and having a bad protobuf struct to start with sort of limited the project. This is another attempt at creating such a structure and hopefully will be worth it. The protobuf structure looks like this: 
+From a top level geobuf provides simple apis to convert from geojson, read, and write geobuf. Geobuf is a custom protobuf implementation of geojson features, its much much faster than json unmarshalling as well as much smaller for geometry heavy features. Performance for reading and writing can be summarized as about 5-10x what your going to see out of plain json. **However with some larger files read concurrently performance for reads could be like 18x (1 gb california roads geojson)** 
 
-```
-syntax = "proto3";
+# Features 
 
-// Variant type encoding
-// The use of values is described in section 4.1 of the specification
-message Value {
-	// Exactly one of these values must be present in a valid message
-	string string_value = 1;
-	float float_value = 2;
-	double double_value = 3;
-	int64 int_value = 4;
-	uint64 uint_value = 5;
-	sint64 sint_value = 6;
-	bool bool_value = 7;
-}
+* One-to-One geojson mapping (no geom collections) in 4326 coordinate system at a 10e-7 precison which is like 30 cm if I remember correctly. 
+* Simple Writer Api for both byte buffers and file buffers implemented essentially the same way (other than intialization)
+* Simple Reader Api for byte and file buffers implemented in esssentially the same way (other than intialization)
+* Command line functions for converting between geobuf and geojson (I still haven't done a javascript impl.)
+* Reader / writer implements iterative reading / writing meaning only one feature is being brought into memory at a time.
+* Allows for high level abstractions to be applied about a geobuf file features indicies (the positions in a file between where the bytes for a given feature exist) **Allowing for out of memory mapping of a feature properties, types, etc. that can be directly used to create new files or sort geobuf features in place** 
+* Tries to implement io.Reader / io.Writer as much as possible, in order to more effecentially write to files a flush is done after several mbs of data is allocated, **unfortunately this means when doing custom writes you will always have to trail a buf.Flush() method to write all existing data to the underlying writer in exchange that data is allocated as a buffer until flushed making writes to file much larger and more effecient.**
 
-// GeomType is described in section 4.3.4 of the specification
-enum GeomType {
-	UNKNOWN = 0;
-	POINT = 1;
-	LINESTRING = 2;
-	POLYGON = 3;
-	MULTIPOINT = 4;
-	MULTILINESTRING = 5;
-	MULTIPOLYGON = 6;
-}
+# Differences from MB Geobuf 
 
-message Feature {
-	uint64 Id = 1;
-	map<string, Value>  Properties = 2;
- 	GeomType type = 3;
-	repeated uint64 Geometry = 4 [ packed = true ];
-	repeated int64 BoundingBox = 5 [ packed = true ]; // N,S,E,W
-}
+Mapbox's geobuf was obviously the inspiration for this but there were several issues I found with the implementation (which is probably why its not super active right now) I took several steps to make my life easier when I built my geobuf thing. 
 
-message FeatureCollection {
-	repeated Feature Features = 1;
-}
-```
+* One resolution, coordinate system and dimmension size is currently supported (none of these are super embedded into the implementation but simplicity > robustness)
+* Features are flat, can be read without any underlying structure from within the protobuf (no keys / values array). I found the values array really the most annoying thing with MB's geobuf, for one gzipping nullifies most gains you'd see from the values array, and it introduces the same problem with vector tile implementations: any time you want to abstract anything, you have to drag the values array through your implementation as its a global for your entire file. (Although in vt it makes more sense) 
 
-**As you can see it takes a few cues from vector-tile protobuf spec, this protobuf structure is essentially an intermediate feature object for a regular geojson object.** 
+# Future Features / Half-implemented
+* File indicie support (returns positional indexs within file) for future sorting / mapping functionality
+	1. You could first apply a mapping function against a feature,ind read looking at properties, geom type etc., then create a map of the indicies you want to group by meaning you could have all the features of certain tile id, in one spot and also return the indicie positions for that entire tile id effectively allowing you to create a entirely new geobuf from the new file. 
+	2. Expanding on step 1 this would of course be used with a write for an entire new geobuf (that would replace the underlying geobuf its based on after complete) 
+	3. Leaving you with the ability to do things like sort / map fields to an entirely new file, which for me was the main disadvantage of using raw protobufs I had to convert to base64 to use the standard unix sort or simply use json. This allows you to sort the entire file, with the only constraint in memory being your map[field][][2]int which of course is a list of the 2 index positions of each feature. 
+	
+* A stable concurrent reader / read mapping for an arbitary function
+* write in place -> newgeobuf -> several geobufs derived from map
+* Could Experiment with implementing different coordinate systems more condusive to creating vector tiles, I've already found that my vector tile writer benifits from the reduced allocations of sending a raw feature byte array into the add feature api, basically reading only the parts I need when I need them encapsolated within the write feature function.  
 
-#### How do Geojson Features and Geobuf Features Differ
-
-Geobuf is mean to be as close to a 1 to 1 geojson mapping as possible. Geobuf's geometry implementation uses delta encoding at a precision of 10e-7 which is like a few cm I think. Your file size mileage may very depending on your number of fields if you have a large number of fields like 50 in each feature your going to probably have a slighly bigger file than geojson but if you have like 5 and largeish geometries (not points) you should see a pretty signicant file size decrease. 
-
-#### If it is based on a protobuf where is it? 
-
-I've taken steps to remove the protobuf implementation. I still utilize my own reader and writer which is a little faster 30-50% but its mainly so that I can wrap the methods for creating the geometries in such within the read and the write. In the previous implementation you had to go from geojson to geobuf feature, although the end user couldn't see it this was a pretty needless allocation. Also Implementing my own reader / writer will allow me to do pretty cool thing with creating vector tiles which I'll detail somewhere else.
-
-# Performance
-
-Obviously at a single feature rate I/O is much much faster the problem previously was reading from a file iteratively was extremely hacky and I ended up splitting up code where I should have used an io.Reader. My new repo [protoscan](http://github.com/murphy214/protoscan) fixes this. 
-
-Still as you can see as for a single feature read currently its > 10x faster. Of course this could vary drastically based on number of features vs. size of geometry etc but its a same assumption thats its much much faster for single feature reads.
-
-However the FeatureCollection aren't exactly a one to one comparison as one is reading iteratively (geobuf) and another is reading the entire collection an once. A more close comparison would be line delimited geojson to geobuf which I may do later. 
-
-```
-goos: darwin
-goarch: amd64
-pkg: github.com/murphy214/geobuf
-Benchmark_Read_FeatureCollection_Old-8    	      10	 137046994 ns/op	21370684 B/op	  638656 allocs/op
-Benchmark_Read_FeatureCollection_New-8    	   50000	     24610 ns/op	   78248 B/op	       9 allocs/op
-Benchmark_Read_Feature_Benchmark_Old-8    	    5000	    360952 ns/op	   70968 B/op	    2240 allocs/op
-Benchmark_Read_Feature_Benchmark_New-8    	   50000	     27324 ns/op	   11856 B/op	     282 allocs/op
-Benchmark_Write_Feature_Benchmark_Old-8   	    5000	    246050 ns/op	   26776 B/op	      23 allocs/op
-Benchmark_Write_Feature_Benchmark_New-8   	   30000	     52173 ns/op	   19952 B/op	     564 allocs/op
-PASS
-ok  	github.com/murphy214/geobuf	9.893s
-```
-
-# Usage
+# Usage (deprecated)
 
 Below I gave a few of the mainline apis for geobuf and how they are used.
 
