@@ -7,9 +7,9 @@ import (
 	//"io"
 	"bytes"
 	"fmt"
+	"github.com/murphy214/pbf"
 	"github.com/murphy214/protoscan"
 	"github.com/paulmach/go.geojson"
-	"github.com/murphy214/pbf"
 )
 
 // protobuf scanner implementation
@@ -95,7 +95,7 @@ func ReadKeys(bytevals []byte) []string {
 		endpos := pbfval.Pos + size
 		//pbfval.ReadKey()
 		pbfval.Pos += 1
-		keys = append(keys,pbfval.ReadString())
+		keys = append(keys, pbfval.ReadString())
 
 		pbfval.Pos = endpos
 		key, val = pbfval.ReadKey()
@@ -141,4 +141,3 @@ func (reader *Reader) ReadIndFeature(inds [2]int) *geojson.Feature {
 	reader.File.ReadAt(bytevals, int64(inds[0]))
 	return ReadFeature(bytevals)
 }
-

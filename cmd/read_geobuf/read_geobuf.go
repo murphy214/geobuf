@@ -4,7 +4,6 @@ import (
   "os"
   g "github.com/murphy214/geobuf"
   "github.com/urfave/cli"
-  "github.com/murphy214/geobuf/read_stdout"
 )
 
 func main() {
@@ -13,7 +12,7 @@ func main() {
   app.Action = func(c *cli.Context) error {
     infilename := c.Args().Get(0)
     geobuf := g.ReaderFile(infilename)
-    geobuf_stdout.ReadGeobuf(geobuf)
+    g.ReadGeobufCSV(infilename)
 
     //g.Convert_Geobuf(infilename,outfilename)
 

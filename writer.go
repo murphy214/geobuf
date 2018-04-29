@@ -29,11 +29,12 @@ func EncodeVarint(x uint64) []byte {
 
 // the writer struct
 type Writer struct {
-	Filename string
-	Writer   *bufio.Writer
-	FileBool bool
-	Buffer   *bytes.Buffer
-	File     *os.File
+	Filename  string
+	Writer    *bufio.Writer
+	FileBool  bool
+	Buffer    *bytes.Buffer
+	File      *os.File
+	Bytesvals []byte
 }
 
 var writersize = 64 * 4096
@@ -44,7 +45,7 @@ func WriterFileNew(filename string) *Writer {
 	if err != nil {
 		fmt.Println(err)
 	}
-	return &Writer{Filename: filename, Writer: bufio.NewWriterSize(file, writersize), FileBool: true, File: file}
+	return &Writer{Filename: filename, FileBool: true, File: file, Bytesvals: []byte{}}
 }
 
 // creates a writer struct
@@ -53,7 +54,7 @@ func WriterFile(filename string) *Writer {
 	if err != nil {
 		fmt.Println(err)
 	}
-	return &Writer{Filename: filename, Writer: bufio.NewWriterSize(file, writersize), FileBool: true, File: file}
+	return &Writer{Filename: filename, FileBool: true, File: file}
 }
 
 // creates a writer buffer new
@@ -79,10 +80,11 @@ func (writer *Writer) WriteFeature(feature *geojson.Feature) {
 			[]byte{10}, EncodeVarint(uint64(len(bytevals)))...,
 		),
 		bytevals...)
-	if writer.Writer.Available() <= writer.Writer.Buffered()+len(bytevals) {
-		writer.Writer.Flush()
+	if writer.FileBool {
+		writer.File.Write(bytevals)
+	} else {
+		writer.Writer.Write(bytevals)
 	}
-	writer.Writer.Write(bytevals)
 
 }
 
@@ -94,20 +96,23 @@ func (writer *Writer) Write(bytevals []byte) {
 			[]byte{10}, EncodeVarint(uint64(len(bytevals)))...,
 		),
 		bytevals...)
-
-	if writer.Writer.Available() <= writer.Writer.Buffered()+len(bytevals) {
-		writer.Writer.Flush()
+	if writer.FileBool {
+		writer.File.Write(bytevals)
+	} else {
+		writer.Writer.Write(bytevals)
 	}
-	writer.Writer.Write(bytevals)
+
 }
 
 // writes a set of byte values representing a feature
 // to the underlying writer
 func (writer *Writer) WriteRaw(bytevals []byte) {
-	if writer.Writer.Available() <= writer.Writer.Buffered()+len(bytevals) {
-		writer.Writer.Flush()
+	if writer.FileBool {
+		writer.File.Write(bytevals)
+	} else {
+		writer.Writer.Write(bytevals)
 	}
-	writer.Writer.Write(bytevals)
+
 }
 
 // adds a geobuf buffer value to an existing geobuf
@@ -154,8 +159,4 @@ func (writer *Writer) Reader() *Reader {
 		return newreader
 	}
 	return &Reader{}
-}
-
-func (writer *Writer) Flush() {
-	writer.Writer.Flush()
 }
