@@ -11,7 +11,6 @@ func main() {
 
   app.Action = func(c *cli.Context) error {
     infilename := c.Args().Get(0)
-    geobuf := g.ReaderFile(infilename)
     g.ReadGeobufCSV(infilename)
 
     //g.Convert_Geobuf(infilename,outfilename)
