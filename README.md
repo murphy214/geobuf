@@ -2,7 +2,7 @@
 
 # What is it?
 
-From a top level geobuf provides simple apis to convert from geojson, read, and write geobuf. Geobuf is a custom protobuf implementation of geojson features, its much much faster than json unmarshalling as well as much smaller for geometry heavy features. Performance for reading and writing can be summarized as about 5-10x what your going to see out of plain json. **However with some larger files read concurrently performance for reads could be like 18x (1 gb california roads geojson)** 
+From a top level geobuf provides simple apis to convert from geojson, read, and write geobuf. Geobuf is a custom protobuf implementation of geojson features, its much much faster than json unmarshalling as well as much smaller for geometry heavy features. Performance for reading and writing can be summarized as about 5-10x what your going to see out of plain json. **However with some larger files reading concurrently is like 18x faster (1 gb california roads geojson)** 
 
 # Features 
 
