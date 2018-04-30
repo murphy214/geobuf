@@ -245,5 +245,20 @@ func WriteFeature(feat *geojson.Feature) []byte {
 			newbytes = append(newbytes, geomb...)
 		}
 	}
+
+	// adding bounding box bytes
+	if feat.Geometry != nil {
+		bb := Get_BoundingBox(feat.Geometry)
+		boxbytes := WritePackedUint64([]uint64{
+			paramEnc(int64(bb[0] * math.Pow(10.0, 7.0))),
+			paramEnc(int64(bb[1] * math.Pow(10.0, 7.0))),
+			paramEnc(int64(bb[2] * math.Pow(10.0, 7.0))),
+			paramEnc(int64(bb[3] * math.Pow(10.0, 7.0))),
+			
+		})
+		boxbytes = append([]byte{42},boxbytes...)
+		newbytes = append(newbytes,boxbytes...)
+	}
+
 	return newbytes
 }

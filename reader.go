@@ -70,7 +70,6 @@ func (reader *Reader) Feature() *geojson.Feature {
 // again more expressive for our use case
 func (reader *Reader) FeatureIndicies() (*geojson.Feature, [2]int) {
 	bytevals, indicies := reader.BytesIndicies()
-	fmt.Println(bytevals)
 	return geobuf_raw.ReadFeature(bytevals), indicies
 }
 
@@ -102,6 +101,30 @@ func ReadKeys(bytevals []byte) []string {
 	}
 
 	return keys
+}
+
+// reads a feature
+func ReadBoundingBox(bytevals []byte) []float64 {
+	pos := len(bytevals) - 1
+	alloc := make([]byte, 32)
+	allocpos := 31
+	boolval := true
+	for boolval {
+		alloc[allocpos] = bytevals[pos]
+		if bytevals[pos] == 42 {
+			boolval = false
+		}
+		pos--
+		allocpos--
+	}
+
+	bb := make([]float64, 4)
+	pbfval := pbf.NewPBF(alloc[allocpos+3:])
+	bb[0] = float64(pbfval.ReadSVarintPower())
+	bb[1] = float64(pbfval.ReadSVarintPower())
+	bb[2] = float64(pbfval.ReadSVarintPower())
+	bb[3] = float64(pbfval.ReadSVarintPower())
+	return bb
 }
 
 func (reader *Reader) ReadAll() []*geojson.Feature {
