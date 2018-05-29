@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 // this structure allows for easy splitting of tiles
@@ -100,11 +101,19 @@ func (splitter *Splitter) AddFeature(key string, feature *geojson.Feature) {
 
 // maps a function that generates a key to an entire geobuf file
 func (splitter *Splitter) MapToSubFiles(myfunc func(feature *geojson.Feature) string) {
+	i := 0
+	s := time.Now()
 	for splitter.Reader.Next() {
 		feature := splitter.Reader.Feature()
 		key := myfunc(feature)
 		splitter.AddFeature(key, feature)
+		i++
+		if i%1000 == 0 {
+			fmt.Printf("\r%d Features Split in %s", i, time.Now().Sub(s))
+		}
 	}
+	fmt.Println()
+
 }
 
 // combines all hte intermediate files and removes them
@@ -142,11 +151,13 @@ func (splitter *Splitter) Combine() {
 	// runnign the command string combining all the files into one
 	cmd := exec.Command("bash", "-c", mycmd)
 	cmd.Run()
+	fmt.Printf("Combined the %d Sub Files\n", len(filenames))
 
 	// removing all the intermediate files
 	for _, i := range filenames {
 		os.RemoveAll(i)
 	}
+	fmt.Println("Removed All Sub Files")
 }
 
 // wrapping all the methods up
@@ -154,4 +165,6 @@ func SplitCombineFile(buf *g.Reader, myfunc func(feature *geojson.Feature) strin
 	splitter := NewSplitter(buf)
 	splitter.MapToSubFiles(myfunc)
 	splitter.Combine()
+	os.Remove(buf.Filename)
+	os.Rename("tmp.geobuf", buf.Filename)
 }
