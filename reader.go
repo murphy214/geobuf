@@ -16,12 +16,14 @@ import (
 
 // protobuf scanner implementation
 type Reader struct {
-	FileBool bool
-	Reader   *protoscan.ProtobufScanner
-	Filename string
-	File     *os.File
-	Buf      []byte
-	MetaData MetaData
+	FileBool     bool                       // a boolean for whether its a file or byte buffer
+	Reader       *protoscan.ProtobufScanner // underlying protoscan reader
+	Filename     string                     // filename
+	File         *os.File                   // file object
+	Buf          []byte                     // buffer if applicable
+	MetaData     MetaData                   // metadata
+	MetaDataBool bool                       // metadatabool
+	SubFileEnd   int                        // the end point of a given subfile
 }
 
 // sub file contained within a geobuf
@@ -179,6 +181,10 @@ func (reader *Reader) Reset() {
 		buffer := bytes.NewReader(reader.Buf)
 		reader.Reader = protoscan.NewProtobufScanner(buffer)
 	}
+	if reader.MetaDataBool {
+		reader.Next()
+		reader.Bytes()
+	}
 }
 
 // reads an indicies ready to append
@@ -213,7 +219,7 @@ func (reader *Reader) Seek(pos int) {
 }
 
 // reads the metadata from a raw bytes set
-func WriteMetaData(meta MetaData) string {
+func WriteMetaData(meta MetaData) interface{} {
 	bb := bytes.NewBuffer([]byte{})
 	dec := gob.NewEncoder(bb)
 	err := dec.Encode(meta)
@@ -239,12 +245,34 @@ func (reader *Reader) CheckMetaData() {
 	reader.Next()
 	feature := reader.Feature()
 	// if the metadata feature exists
-	if len(feature.Geometry.Point) == 5 {
+	_, boolval := feature.Properties["metadata"]
+	if len(feature.Properties) == 1 && boolval {
 		bytevals := []byte(feature.Properties["metadata"].(string))
 		reader.MetaData = ReadMetaData(bytevals)
 		reader.MetaData.LintMetaData(reader.Reader.TotalPosition)
+		reader.MetaDataBool = true
 	} else {
 		reader.Reset()
 	}
 
+}
+
+// this functions seeks a specific key in the filemap if it contains metadata
+// given a key the underlying reader is moved to exact positon where that subfile starts
+func (reader *Reader) SubFileSeek(key string) {
+	// getting the correct positon
+	subfile := reader.MetaData.Files[key]
+
+	// seeking to the correct positon
+	reader.Seek(subfile.Positions[0])
+
+	// sets the end of the subfile
+	reader.SubFileEnd = subfile.Positions[1]
+}
+
+// alias for the Scan method on reader
+// next is a little more expressive
+// this next specifically pertains to all features within a sub file
+func (reader *Reader) SubFileNext() bool {
+	return reader.Reader.Scan() && reader.Reader.TotalPosition < reader.SubFileEnd
 }
