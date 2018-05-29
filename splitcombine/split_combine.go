@@ -4,6 +4,7 @@ import (
 	"fmt"
 	g "github.com/murphy214/geobuf"
 	m "github.com/murphy214/mercantile"
+	"github.com/murphy214/tile-cover"
 	"github.com/paulmach/go.geojson"
 	"os"
 	"os/exec"
@@ -100,13 +101,15 @@ func (splitter *Splitter) AddFeature(key string, feature *geojson.Feature) {
 }
 
 // maps a function that generates a key to an entire geobuf file
-func (splitter *Splitter) MapToSubFiles(myfunc func(feature *geojson.Feature) string) {
+func (splitter *Splitter) MapToSubFiles(myfunc func(feature *geojson.Feature) []string) {
 	i := 0
 	s := time.Now()
 	for splitter.Reader.Next() {
 		feature := splitter.Reader.Feature()
-		key := myfunc(feature)
-		splitter.AddFeature(key, feature)
+		keys := myfunc(feature)
+		for _, key := range keys {
+			splitter.AddFeature(key, feature)
+		}
 		i++
 		if i%1000 == 0 {
 			fmt.Printf("\r%d Features Split in %s", i, time.Now().Sub(s))
@@ -161,10 +164,25 @@ func (splitter *Splitter) Combine() {
 }
 
 // wrapping all the methods up
-func SplitCombineFile(buf *g.Reader, myfunc func(feature *geojson.Feature) string) {
+func SplitCombineFile(buf *g.Reader, myfunc func(feature *geojson.Feature) []string) {
 	splitter := NewSplitter(buf)
 	splitter.MapToSubFiles(myfunc)
 	splitter.Combine()
 	os.Remove(buf.Filename)
 	os.Rename("tmp.geobuf", buf.Filename)
+}
+
+// a function to split and combine tiles
+func SplitCombineTiles(buf *g.Reader, zoom int) {
+	// defining function
+	myfunc := func(feature *geojson.Feature) []string {
+		tiles := tilecover.TileCover(feature, zoom)
+		mystringtiles := make([]string, len(tiles))
+		for pos, tile := range tiles {
+			mystringtiles[pos] = m.TilestrFile(tile)
+		}
+		return mystringtiles
+	}
+	// running operation
+	SplitCombineFile(buf, myfunc)
 }
