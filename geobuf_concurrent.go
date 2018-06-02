@@ -101,8 +101,14 @@ func (reader *Reader_Concurrent) Next() bool {
 	if reader.TotalCount == reader.Pos+1 && !reader.StartBool && !reader.BoolVal {
 		return false
 	}
-
 	return ((reader.StartBool || reader.Count != 0) || reader.BoolVal) || (reader.TotalCount > reader.Pos && !reader.StartBool)
+}
+
+func (reader *Reader_Concurrent) SubFileNext() bool {
+	if reader.TotalCount == reader.Pos+1 && !reader.StartBool && !reader.BoolVal {
+		return false
+	}
+	return ((reader.StartBool || reader.Count != 0) || reader.BoolVal) || (reader.TotalCount > reader.Pos && !reader.StartBool) && reader.Reader.Reader.TotalPosition < reader.Reader.SubFileEnd
 }
 
 func (reader *Reader_Concurrent) Increment() bool {

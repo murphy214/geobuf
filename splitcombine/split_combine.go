@@ -91,6 +91,7 @@ func (splitter *Splitter) AddFeature(key string, feature *geojson.Feature) {
 		bbnew := m.Extrema{N: north, S: south, E: east, W: west}
 		splitter.Bounds = PushTwoBoundingBoxs(splitter.Bounds, bbnew)
 	}
+
 	splitter.NumberFeatures += 1
 	buf, boolval := splitter.SplitMap[key]
 	if !boolval {
@@ -111,6 +112,7 @@ func (splitter *Splitter) MapToSubFiles(myfunc func(feature *geojson.Feature) []
 			splitter.AddFeature(key, feature)
 		}
 		i++
+		//fmt.Println(i)
 		if i%1000 == 0 {
 			fmt.Printf("\r%d Features Split in %s", i, time.Now().Sub(s))
 		}
@@ -173,7 +175,7 @@ func SplitCombineFile(buf *g.Reader, myfunc func(feature *geojson.Feature) []str
 }
 
 // a function to split and combine tiles
-func SplitCombineTiles(buf *g.Reader, zoom int) {
+func SplitCombineTiles(buf *g.Reader, zoom int) *g.Reader {
 	// defining function
 	myfunc := func(feature *geojson.Feature) []string {
 		tiles := tilecover.TileCover(feature, zoom)
@@ -185,4 +187,5 @@ func SplitCombineTiles(buf *g.Reader, zoom int) {
 	}
 	// running operation
 	SplitCombineFile(buf, myfunc)
+	return g.ReaderFile(buf.Filename)
 }
