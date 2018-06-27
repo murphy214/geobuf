@@ -14,8 +14,6 @@ import (
 
 var toptags = []string{"building", "source", "highway", "addr:housenumber", "addr:street", "name", "addr:city", "addr:postcode", "natural", "addr:country", "source:date", "landuse", "surface", "power", "waterway", "start_date", "tiger:cfcc", "tiger:county", "amenity", "oneway", "tiger:reviewed", "wall", "created_by", "building:levels", "ref", "ref:bag", "maxspeed", "height", "barrier", "service", "tiger:name_base", "lanes", "attribution", "access", "tiger:name_type", "source:addr", "addr:place", "type", "ele", "layer", "tracktype", "place", "tiger:tlid", "tiger:source", "leisure", "tiger:upload_uuid", "foot", "railway", "bicycle", "operator", "tiger:zip_left", "addr:suburb", "yh:WIDTH", "tiger:zip_right", "bridge", "tiger:separated", "addr:conscriptionnumber", "addr:state", "shop", "addr:city:simc", "note", "lacounty:bld_id", "lacounty:ain", "ref:ruian:building", "source_ref", "lit", "yh:STRUCTURE", "yh:TYPE", "building:units", "name:en", "addr:province", "building:ruian:type", "yh:TOTYUMONO", "yh:WIDTH_RANK", "man_made", "osak:identifier", "osak:municipality_no", "osak:revision", "osak:street_no", "is_in", "ref:ruian:addr", "leaf_type", "addr:interpolation", "NHD:FCode", "NHD:ComID", "public_transport", "NHD:ReachCode", "intermittent", "roof:shape", "boundary", "tourism", "crossing", "tunnel", "building:flats", "addr:street:sym_ul", "NHD:RESOLUTION", "width", "gauge", "water", "entrance", "import", "website", "admin_level", "sport", "nhd:reach_code", "electrified", "NHD:way_id", "NHD:FType", "footway", "nhd:com_id", "tiger:name_direction_prefix", "wheelchair", "source:geometry", "sidewalk", "voltage", "fixme", "source:maxspeed", "smoothness", "description", "network", "opening_hours", "gnis:feature_id", "phone", "building:material", "tiger:name_base_1", "wikidata", "nycdoitt:bin", "nhd:fdate", "parking", "bus", "gnis:fcode", "religion", "emergency", "wikipedia", "leaf_cycle", "gnis:ftype", "ref:linz:address_id", "frequency", "motor_vehicle", "species", "name:ru", "source:name", "area", "is_in:state", "horse", "historic", "usage", "restriction", "raba:id", "name_1", "alt_name", "is_in:country", "gnis:created", "material", "LINZ:source_version", "addr:streetnumber", "is_in:state_code", "chicago:building_id", "osak:street_name", "cycleway", "denotation", "roof:material", "gnis:county_id", "wetland", "gnis:state_id", "fire_hydrant:type", "osak:municipality_name", "LINZ:layer", "osak:house_no", "LINZ:dataset", "addr:full", "addr:district", "NHD:FDate", "shelter", "NHD:FTYPE", "roof:colour", "postal_code", "note:ja", "building:use", "osak:subdivision", "source:conscriptionnumber", "cuisine", "addr:street:name", "route", "addr:street:type", "building:part", "it:fvg:ctrn:code", "it:fvg:ctrn:revision", "ref:ruian", "junction", "denomination", "hgv", "source:position", "noexit", "KSJ2:curve_id", "information"}
 
-
-
 // BoundingBox implementation as per https://tools.ietf.org/html/rfc7946
 // BoundingBox syntax: "bbox": [west, south, east, north]
 // BoundingBox defaults "bbox": [-180.0, -90.0, 180.0, 90.0]
@@ -210,15 +208,14 @@ func WriteRow(feature *geojson.Feature, keys []string) {
 func ReadGeobufCSV(filename string) {
 	buf := ReaderFile(filename)
 	//keys, _ := GetKeys(buf)
-	keys := append(toptags[:50],[]string{"Bounds", "Type", "Geometry"}...)
+	keys := append(toptags[:50], []string{"Bounds", "Type", "Geometry"}...)
 	io.WriteString(os.Stdout, strings.Join(keys, "|")+"\n")
 	myfunc := func(feature *geojson.Feature) interface{} {
 		WriteRow(feature, keys)
 		return ""
 	}
 
-	buf2 := NewGeobufReaderFunction(buf, myfunc)
-	for buf2.Next() {
-		buf2.Value()
+	for buf.Next() {
+		myfunc(buf.Feature())
 	}
 }

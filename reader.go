@@ -24,6 +24,7 @@ type Reader struct {
 	MetaData     MetaData                   // metadata
 	MetaDataBool bool                       // metadatabool
 	SubFileEnd   int                        // the end point of a given subfile
+	FeatureCount int                        // number of features iterated through
 }
 
 // sub file contained within a geobuf
@@ -54,6 +55,8 @@ func ReaderBuf(bytevals []byte) *Reader {
 	buffer := bytes.NewReader(bytevals)
 	buf := &Reader{Reader: protoscan.NewProtobufScanner(buffer), Buf: bytevals, FileBool: false}
 	buf.CheckMetaData()
+	buf.FeatureCount = 0
+
 	return buf
 }
 
@@ -72,12 +75,14 @@ func ReaderFile(filename string) *Reader {
 		File:     file,
 	}
 	buf.CheckMetaData()
+	buf.FeatureCount = 0
 	return buf
 }
 
 // alias for the Scan method on reader
 // next is a little more expressive
 func (reader *Reader) Next() bool {
+	reader.FeatureCount++
 	return reader.Reader.Scan()
 }
 
@@ -185,6 +190,7 @@ func (reader *Reader) Reset() {
 		reader.Next()
 		reader.Bytes()
 	}
+	reader.FeatureCount = 0
 }
 
 // reads an indicies ready to append
@@ -251,6 +257,8 @@ func (reader *Reader) CheckMetaData() {
 		reader.MetaData = ReadMetaData(bytevals)
 		reader.MetaData.LintMetaData(reader.Reader.TotalPosition)
 		reader.MetaDataBool = true
+		reader.FeatureCount = 0
+
 	} else {
 		reader.Reset()
 	}
