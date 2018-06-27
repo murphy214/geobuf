@@ -1,5 +1,5 @@
 # Geobuf - A geojson interchange format based on protocol buffers, for large bulk geojson feature processing
-[![GoDoc](https://img.shields.io/badge/api-reference-blue.svg?style=flat-square)](https://godoc.org/github.com/murphy214/vector-tile-go)
+[![GoDoc](https://img.shields.io/badge/api-reference-blue.svg?style=flat-square)](https://godoc.org/github.com/murphy214/geobuf)
 
 #### What is it?
 
