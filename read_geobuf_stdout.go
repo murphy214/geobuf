@@ -140,7 +140,7 @@ func BoundingBox_MultiPolygonGeometry(multipolygon [][][][]float64) []float64 {
 func BoundingBox_GeometryCollection(gs []*geojson.Geometry) []float64 {
 	bboxs := [][]float64{}
 	for _, g := range gs {
-		bboxs = append(bboxs, g.Get_BoundingBox())
+		bboxs = append(bboxs, Get_BoundingBox(g))
 	}
 	return Expand_BoundingBoxs(bboxs)
 }
