@@ -1,10 +1,11 @@
 package geobuf
 
 import (
-	//g "github.com/murphy214/geobuf"
+	"github.com/murphy214/geobuf_raw"
 	"fmt"
 	//"encoding/csv"
 	"github.com/paulmach/go.geojson"
+	""
 	"io"
 	"os"
 	"strings"
@@ -140,7 +141,7 @@ func BoundingBox_MultiPolygonGeometry(multipolygon [][][][]float64) []float64 {
 func BoundingBox_GeometryCollection(gs []*geojson.Geometry) []float64 {
 	bboxs := [][]float64{}
 	for _, g := range gs {
-		bboxs = append(bboxs, Get_BoundingBox(g))
+		bboxs = append(bboxs, geobuf_raw.Get_BoundingBox(g))
 	}
 	return Expand_BoundingBoxs(bboxs)
 }
