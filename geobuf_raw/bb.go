@@ -1,9 +1,8 @@
-package geobuf_raw 
+package geobuf_raw
 
 import (
 	"github.com/paulmach/go.geojson"
 )
-
 
 // BoundingBox implementation as per https://tools.ietf.org/html/rfc7946
 // BoundingBox syntax: "bbox": [west, south, east, north]
@@ -14,15 +13,15 @@ func BoundingBox_Points(pts [][]float64) []float64 {
 
 	for pos, pt := range pts {
 		if pos == 0 {
-			west,east = pt[0],pt[0]
-			south,north = pt[1],pt[1]
+			west, east = pt[0], pt[0]
+			south, north = pt[1], pt[1]
 		}
 		x, y := pt[0], pt[1]
 		// can only be one condition
 		// using else if reduces one comparison
 		if x < west {
 			west = x
-		} 
+		}
 		if x > east {
 			east = x
 		}
@@ -135,7 +134,7 @@ func BoundingBox_MultiPolygonGeometry(multipolygon [][][][]float64) []float64 {
 func BoundingBox_GeometryCollection(gs []*geojson.Geometry) []float64 {
 	bboxs := [][]float64{}
 	for _, g := range gs {
-		bboxs = append(bboxs, g.Get_BoundingBox())
+		bboxs = append(bboxs, Get_BoundingBox(g))
 	}
 	return Expand_BoundingBoxs(bboxs)
 }

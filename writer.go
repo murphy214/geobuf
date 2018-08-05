@@ -148,7 +148,6 @@ func (writer *Writer) Bytes() []byte {
 
 // converts a writer into a reader
 func (writer *Writer) Reader() *Reader {
-	writer.Writer.Flush()
 
 	if !writer.FileBool {
 		newreader := ReaderBuf(writer.Bytes())

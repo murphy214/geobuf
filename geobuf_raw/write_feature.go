@@ -254,10 +254,9 @@ func WriteFeature(feat *geojson.Feature) []byte {
 			paramEnc(int64(bb[1] * math.Pow(10.0, 7.0))),
 			paramEnc(int64(bb[2] * math.Pow(10.0, 7.0))),
 			paramEnc(int64(bb[3] * math.Pow(10.0, 7.0))),
-			
 		})
-		boxbytes = append([]byte{42},boxbytes...)
-		newbytes = append(newbytes,boxbytes...)
+		boxbytes = append([]byte{42}, boxbytes...)
+		newbytes = append(newbytes, boxbytes...)
 	}
 
 	return newbytes
