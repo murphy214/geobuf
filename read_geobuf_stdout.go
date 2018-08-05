@@ -1,11 +1,10 @@
 package geobuf
 
 import (
-	"github.com/murphy214/geobuf_raw"
 	"fmt"
+	"github.com/murphy214/geobuf/geobuf_raw"
 	//"encoding/csv"
 	"github.com/paulmach/go.geojson"
-	""
 	"io"
 	"os"
 	"strings"
