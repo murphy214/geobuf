@@ -130,15 +130,6 @@ func BoundingBox_MultiPolygonGeometry(multipolygon [][][][]float64) []float64 {
 	return Expand_BoundingBoxs(bboxs)
 }
 
-// Returns a BoundingBox for a geometry collection
-func BoundingBox_GeometryCollection(gs []*geojson.Geometry) []float64 {
-	bboxs := [][]float64{}
-	for _, g := range gs {
-		bboxs = append(bboxs, Get_BoundingBox(g))
-	}
-	return Expand_BoundingBoxs(bboxs)
-}
-
 // retrieves a boundingbox for a given geometry
 func Get_BoundingBox(g *geojson.Geometry) []float64 {
 	switch g.Type {
@@ -157,4 +148,13 @@ func Get_BoundingBox(g *geojson.Geometry) []float64 {
 
 	}
 	return []float64{}
+}
+
+// Returns a BoundingBox for a geometry collection
+func BoundingBox_GeometryCollection(gs []*geojson.Geometry) []float64 {
+	bboxs := [][]float64{}
+	for _, g := range gs {
+		bboxs = append(bboxs, Get_BoundingBox(g))
+	}
+	return Expand_BoundingBoxs(bboxs)
 }
