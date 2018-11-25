@@ -189,3 +189,56 @@ func SplitCombineTiles(buf *g.Reader, zoom int) *g.Reader {
 	SplitCombineFile(buf, myfunc)
 	return g.ReaderFile(buf.Filename)
 }
+
+
+// this is a corner case that continues to come up
+// if splitting a file and the sub file needs to be split again
+// each subfile contains its own subfile that needs to be handled
+// combine all the sub files into one big file 
+// then dump meta data into another
+func CombineFileSubFiles(filenames []string) {
+	west, south, east, north := 180.0, 90.0, -180.0, -90.0
+	bb := m.Extrema{N: north, S: south, E: east, W: west}
+	metadata := g.MetaData{
+		Bounds:         bb,
+		Files:          map[string]*g.SubFile{},
+		NumberFeatures: 0,
+	}
+	currentpos := 0
+	file,_ := os.Create("tmp.geobuf")
+	for _,filename := range filenames {
+		buf := g.ReaderFile(filename)
+		filemap := buf.MetaData.Files
+		// iterating through each file in flemap
+		for k,v := range filemap {
+			oldpos := currentpos
+			filesize := v.Positions[1]-v.Positions[0]
+			currentpos+=filesize
+			rawbytes := make([]byte,int64(filesize))
+			buf.File.ReadAt(rawbytes,int64(v.Positions[0]))
+			subfile := &g.SubFile{
+				Positions: [2]int{oldpos, currentpos},
+				Size: currentpos - oldpos,
+			}
+			metadata.Files[k] = subfile
+			file.Write(rawbytes)
+		}
+		os.Remove(filename)
+	}
+	// creating the feature that inddicates this contains metadata
+	feature := geojson.NewPointFeature([]float64{0, 0})
+	feature.Properties = map[string]interface{}{"metadata": g.WriteMetaData(metadata)}
+
+	// creating new buffer that will soon replace the old one
+	buf := g.WriterFileNew("meta.geobuf")
+	buf.WriteFeature(feature)
+	mycmd := "cat meta.geobuf tmp.geobuf >> tmp2.geobuf"
+
+	// runnign the command string combining all the files into one
+	cmd := exec.Command("bash", "-c", mycmd)
+	cmd.Run()
+
+	os.Remove("meta.geobuf")
+	os.Remove("tmp.geobuf")
+	os.Rename("tmp2.geobuf","tmp.geobuf")
+}
