@@ -26,7 +26,7 @@ func ReadFeature(bytevals []byte) *geojson.Feature {
 		keyvalue := pbfval.ReadString()
 
 		pbfval.Pos += 1
-		pbfval.ReadVarint()
+		pbfval.Varint()
 		newkey, _ := pbfval.ReadKey()
 		switch newkey {
 		case 1:

@@ -1,8 +1,31 @@
 package splitcombine
 
+/* 
+
+Now supports mapping of entire functions on to an arbitary tile size.
+
+The tile mapping is at first a little counter intuitive, and its inputs may seem odd.
+
+For exaple the bounds are used to determine the maximum amount of tiles possible to map to. 
+
+OS defaults to a maximum of 1024 files so we can't go over this. 
+
+Therefore, we abstract out a mappings recursively in a way which limits the maximum number of open files.
+
+The cost of this is of course high levels of reads and writes.
+
+However, this i/o after the initial mapping is trivial by writing a custom read to only get the tileid from a featuer byte array.
+
+Effectively leaving making much more equivalent to simple disk i/o rather than a structure serialization.
+
+This will be pretty signicant..
+
+*/
+
 import (
 	"fmt"
 	g "github.com/murphy214/geobuf"
+
 	m "github.com/murphy214/mercantile"
 	"github.com/murphy214/tile-cover"
 	"github.com/paulmach/go.geojson"
@@ -10,7 +33,32 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+	"math"
+	"github.com/murphy214/pbf"
 )
+
+type TileMap func(feature *geojson.Feature) map[m.TileID]*geojson.Feature
+
+
+// getting size of the estimated square grid of tiles
+func GetSizeGrid(bb m.Extrema,zoom int) int {
+	ne := []float64{bb.E,bb.N}
+	sw := []float64{bb.W,bb.S}
+	tile1 := m.Tile(ne[0],ne[1],zoom)
+	tile2 := m.Tile(sw[0],sw[1],zoom)
+	deltax := math.Abs(float64(tile1.X - tile2.X))
+	deltay := math.Abs(float64(tile1.Y - tile2.Y))
+	return int(deltax * deltay)
+}
+
+// configuration structure for tile mapping
+type TileConfig struct {
+	InPlace bool // create new file or replace existing
+	Bounds m.Extrema // expected bounds of the mapping
+	Zoom int 
+	OutputFileName string // defaults to "new_mapped.geobuf"
+}
+
 
 // this structure allows for easy splitting of tiles
 type Splitter struct {
@@ -101,6 +149,17 @@ func (splitter *Splitter) AddFeature(key string, feature *geojson.Feature) {
 	buf.WriteFeature(feature)
 }
 
+// adds a set of bytes representing a features
+func (splitter *Splitter) AddBytes(key string,bs []byte) {
+	splitter.NumberFeatures++
+	buf, boolval := splitter.SplitMap[key]
+	if !boolval {
+		splitter.SplitMap[key] = g.WriterFileNew(key + ".geobuf")
+		buf = splitter.SplitMap[key]
+	}
+	buf.Write(bs)
+}
+
 // maps a function that generates a key to an entire geobuf file
 func (splitter *Splitter) MapToSubFiles(myfunc func(feature *geojson.Feature) []string) {
 	i := 0
@@ -156,13 +215,13 @@ func (splitter *Splitter) Combine() {
 	// runnign the command string combining all the files into one
 	cmd := exec.Command("bash", "-c", mycmd)
 	cmd.Run()
-	fmt.Printf("Combined the %d Sub Files\n", len(filenames))
+	//fmt.Printf("Combined the %d Sub Files\n", len(filenames))
 
 	// removing all the intermediate files
 	for _, i := range filenames {
 		os.RemoveAll(i)
 	}
-	fmt.Println("Removed All Sub Files")
+	//fmt.Println("Removed All Sub Files")
 }
 
 // wrapping all the methods up
@@ -241,4 +300,166 @@ func CombineFileSubFiles(filenames []string) {
 	os.Remove("meta.geobuf")
 	os.Remove("tmp.geobuf")
 	os.Rename("tmp2.geobuf","tmp.geobuf")
+}
+
+// structure for finding overlapping values
+func Overlapping_1D(box1min float64,box1max float64,box2min float64,box2max float64) bool {
+	if box1max >= box2min && box2max >= box1min {
+		return true
+	} else {
+		return false
+	}
+	return false
+}
+
+// returns a boolval for whether or not the bb intersects
+func Intersect(bdsref m.Extrema,bds m.Extrema) bool {
+	if Overlapping_1D(bdsref.W,bdsref.E,bds.W,bds.E) && Overlapping_1D(bdsref.S,bdsref.N,bds.S,bds.N) {
+		return true
+	} else {
+		return false
+	}
+	return false
+}
+
+// this function is intended to be a light weight 
+// read of feature bytes with minimal logic / alloc to 
+// read the single feature property we need, "TILEID"
+func LazyFeatureTileID(bs []byte) m.TileID {
+	pbfval := pbf.PBF{Pbf: bs, Length: len(bs)}
+
+	// id logic
+	key, val := pbfval.ReadKey()
+	if key == 1 && val == 0 {
+		pbfval.Varint()
+		key, val = pbfval.ReadKey()
+	}
+
+	// property logic / for loop
+	// here we take noticeable deviation from prior implementations
+	// the changes generally are from type serialization to byte traversal
+	for key == 2 && val == 2 {
+		// starting properties shit here
+
+		size := pbfval.ReadVarint()
+		endpos := pbfval.Pos + size
+		//pbfval.ReadKey()
+		pbfval.Pos += 1
+		keyvalue := pbfval.ReadString()
+		if keyvalue == "TILEID" {
+			pbfval.Pos += 1
+			pbfval.Varint()
+			pbfval.ReadKey()
+			return m.TileFromString(pbfval.ReadString())
+		} else {
+			pbfval.Pos += 1
+			pbfval.Pos += pbfval.ReadVarint()
+		}
+		pbfval.Pos = endpos
+		key, val = pbfval.ReadKey()
+	}
+	return m.TileID{}
+}
+var StartZoom = 0
+var EndZoom = 0
+
+// a powerful function that maps an entire geobuf into a submapping that can be navigated
+// through geobufs seek api 
+// one can effectively view this as a sort with about tiles 
+func MapGeobuf(filename string,mapfunc TileMap, tileconfig *TileConfig) {
+	// setting default outfilename
+	// collisons with other names are possible but unlikely
+	if len(tileconfig.OutputFileName) == 0 {
+		tileconfig.OutputFileName = "new_mapped.geobuf"
+	}
+
+	// determining the largest size zoom we can start at
+	size := GetSizeGrid(tileconfig.Bounds,tileconfig.Zoom)
+	currentzoom := tileconfig.Zoom
+	for size > 1024 {
+		size = size / 4 
+		currentzoom--
+	}	
+	StartZoom = currentzoom
+	EndZoom = tileconfig.Zoom
+	// creating tile buffer
+	buf := g.ReaderFile(filename)
+
+	// creating new splitter 
+	// this abstracts away an underlying mapping process out of memory
+	splitter := NewSplitter(buf)
+
+	// iterating through each feature
+	for buf.Next() {
+		feature := buf.Feature()
+
+		tmpbb := feature.BoundingBox
+		newbb := m.Extrema{W:tmpbb[0],S:tmpbb[1],E:tmpbb[2],N:tmpbb[3]}
+		if Intersect(newbb,tileconfig.Bounds) {			
+			for tile,v := range mapfunc(feature) {
+				// permeating the mapped tile to the current zoom level were mapping
+				feature.Properties["TILEID"] = m.TilestrFile(tile)
+				for int(tile.Z) != currentzoom {
+					tile = m.Parent(tile)
+				}
+				splitter.AddFeature(m.TilestrFile(tile),v)			
+			}
+		}
+	}
+
+	// combining all the files
+	splitter.Combine()
+	os.Rename("tmp.geobuf","new.geobuf")
+
+	// this code steps through a zoom level with steps as large as possible (4) 256 max open files
+	// for every one of these jumps we require an read / write of the entire file
+	// luckily this is almost pure i/o 
+	for currentzoom != tileconfig.Zoom {
+		// determing the step we will take
+		var delta int
+		if tileconfig.Zoom - currentzoom < 4 {
+			delta = tileconfig.Zoom - currentzoom
+		} else {
+			delta = 4
+		}
+		currentzoom+=delta
+		// opening current geobuf iteration & getting filemap
+		newbuf := g.ReaderFile("new.geobuf")
+		filemap := newbuf.MetaData.Files
+		newlist := []string{}
+		for k := range filemap {
+			// putting read cursor at the start of the tile k block
+			newbuf.SubFileSeek(k)
+
+			// creating the subsplitter
+			// and passing through the current split to the next zoom
+			subsplitter := NewSplitter(newbuf)
+			for newbuf.SubFileNext() {
+				bs := newbuf.Bytes()
+				tile := LazyFeatureTileID(bs)
+				for int(tile.Z) != currentzoom {
+					tile = m.Parent(tile)
+				}
+				subsplitter.AddBytes(m.TilestrFile(tile),bs)
+			}
+			
+			// combining and cleaning up
+			subsplitter.Combine()
+			os.Rename("tmp.geobuf",k+".geobuf")
+			newlist = append(newlist,k+".geobuf")
+		}
+
+		// cleaning up each iteration
+		CombineFileSubFiles(newlist)
+		os.Remove("new.geobuf")
+		os.Rename("tmp.geobuf","new.geobuf")
+	}
+
+	// final clean up process
+	if tileconfig.InPlace {
+		os.Remove(filename)
+		os.Rename("new.geobuf",filename)
+	} else {
+		os.Rename("new.geobuf",tileconfig.OutputFileName)
+	}	
 }
