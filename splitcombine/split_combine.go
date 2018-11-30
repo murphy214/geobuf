@@ -139,7 +139,7 @@ func (splitter *Splitter) AddFeature(key string, feature *geojson.Feature) {
 		bbnew := m.Extrema{N: north, S: south, E: east, W: west}
 		splitter.Bounds = PushTwoBoundingBoxs(splitter.Bounds, bbnew)
 	}
-
+	
 	splitter.NumberFeatures += 1
 	buf, boolval := splitter.SplitMap[key]
 	if !boolval {
@@ -187,7 +187,7 @@ func (splitter *Splitter) Combine() {
 		Bounds:         splitter.Bounds,
 		Files:          map[string]*g.SubFile{},
 		NumberFeatures: splitter.NumberFeatures,
-	}
+	}	
 
 	// iterating through each file and adding subfile metadata
 	currentpos := 0
@@ -360,8 +360,27 @@ func LazyFeatureTileID(bs []byte) m.TileID {
 	}
 	return m.TileID{}
 }
+
+type LoggingInitialMap struct {
+	StartTime time.Time
+}
+
+// logs the number of features and number of files
+func (logger *LoggingInitialMap) Log(numberoffeautures int,featurescreated,numberoffiles int) {
+	timepassed := time.Now().Sub(logger.StartTime).Seconds()
+	fmt.Printf(
+		"Initial Map | Features: %d | Features Created: %d, | Number of Files: %d, Features / s: %f\n",
+		numberoffeautures,
+		featurescreated,
+		numberoffiles,
+		timepassed,
+	)
+}
+
+
 var StartZoom = 0
 var EndZoom = 0
+
 
 // a powerful function that maps an entire geobuf into a submapping that can be navigated
 // through geobufs seek api 
@@ -372,6 +391,8 @@ func MapGeobuf(filename string,mapfunc TileMap, tileconfig *TileConfig) {
 	if len(tileconfig.OutputFileName) == 0 {
 		tileconfig.OutputFileName = "new_mapped.geobuf"
 	}
+
+	logger := LoggingInitialMap{time.Now()}
 
 	// determining the largest size zoom we can start at
 	size := GetSizeGrid(tileconfig.Bounds,tileconfig.Zoom)
@@ -390,12 +411,13 @@ func MapGeobuf(filename string,mapfunc TileMap, tileconfig *TileConfig) {
 	splitter := NewSplitter(buf)
 
 	// iterating through each feature
+	i := 0
 	for buf.Next() {
 		feature := buf.Feature()
-
 		tmpbb := feature.BoundingBox
 		newbb := m.Extrema{W:tmpbb[0],S:tmpbb[1],E:tmpbb[2],N:tmpbb[3]}
-		if Intersect(newbb,tileconfig.Bounds) {			
+
+		if Intersect(newbb,tileconfig.Bounds) {
 			for tile,v := range mapfunc(feature) {
 				// permeating the mapped tile to the current zoom level were mapping
 				feature.Properties["TILEID"] = m.TilestrFile(tile)
@@ -405,6 +427,13 @@ func MapGeobuf(filename string,mapfunc TileMap, tileconfig *TileConfig) {
 				splitter.AddFeature(m.TilestrFile(tile),v)			
 			}
 		}
+		
+		if i%1000==0 {
+			logger.Log(i,splitter.NumberFeatures,len(splitter.SplitMap))
+		}
+
+
+		i++
 	}
 
 	// combining all the files
