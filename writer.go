@@ -159,3 +159,8 @@ func (writer *Writer) Reader() *Reader {
 	}
 	return &Reader{}
 }
+
+// closes an underlying writer
+func (writer *Writer) Close() {
+	writer.File.Close()
+}

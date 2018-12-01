@@ -284,3 +284,8 @@ func (reader *Reader) SubFileSeek(key string) {
 func (reader *Reader) SubFileNext() bool {
 	return reader.Reader.Scan() && reader.Reader.TotalPosition < reader.SubFileEnd
 }
+
+// closes an underlying file
+func (reader *Reader) Close() {
+	reader.File.Close()
+}

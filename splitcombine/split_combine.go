@@ -57,6 +57,7 @@ type TileConfig struct {
 	Bounds m.Extrema // expected bounds of the mapping
 	Zoom int 
 	OutputFileName string // defaults to "new_mapped.geobuf"
+	Concurrent int // defaults at 1k
 }
 
 
@@ -187,7 +188,12 @@ func (splitter *Splitter) Combine() {
 		Bounds:         splitter.Bounds,
 		Files:          map[string]*g.SubFile{},
 		NumberFeatures: splitter.NumberFeatures,
-	}	
+	}
+
+	// closing all underlying writers
+	for _,bufw := range splitter.SplitMap {
+		bufw.Close()
+	}
 
 	// iterating through each file and adding subfile metadata
 	currentpos := 0
@@ -282,6 +288,7 @@ func CombineFileSubFiles(filenames []string) {
 			metadata.Files[k] = subfile
 			file.Write(rawbytes)
 		}
+		buf.Close()
 		os.Remove(filename)
 	}
 	// creating the feature that inddicates this contains metadata
@@ -361,19 +368,48 @@ func LazyFeatureTileID(bs []byte) m.TileID {
 	return m.TileID{}
 }
 
+// processes concurrent features
+func concurrentfeatures(features []*geojson.Feature,splitter *Splitter,bds m.Extrema,zoom int,currentzoom int,mapfunc TileMap) {
+	c := make(chan map[m.TileID]*geojson.Feature,len(features))
+	for _,feature := range features {
+		tmpbb := feature.BoundingBox
+		newbb := m.Extrema{W:tmpbb[0],S:tmpbb[1],E:tmpbb[2],N:tmpbb[3]}
+		if Intersect(newbb,bds) {
+			go func(feature *geojson.Feature,zoom int,c chan map[m.TileID]*geojson.Feature) {
+				c <- mapfunc(feature)
+			}(feature,zoom,c)
+		} else {
+			c <- map[m.TileID]*geojson.Feature{}
+		}
+	}
+	for range features {
+		out := <-c
+		for tile,feature := range out {
+			// permeating the mapped tile to the current zoom level were mapping
+			feature.Properties["TILEID"] = m.TilestrFile(tile)
+			for int(tile.Z) != currentzoom {
+				tile = m.Parent(tile)
+			}
+			splitter.AddFeature(m.TilestrFile(tile),feature)			
+		}
+	}
+}  
+
+
 type LoggingInitialMap struct {
 	StartTime time.Time
 }
 
 // logs the number of features and number of files
-func (logger *LoggingInitialMap) Log(numberoffeautures int,featurescreated,numberoffiles int) {
+func (logger *LoggingInitialMap) Log(numberoffeautures int,featurescreated,numberoffiles int,percent_read float64) {
 	timepassed := time.Now().Sub(logger.StartTime).Seconds()
 	fmt.Printf(
-		"Initial Map | Features: %d | Features Created: %d, | Number of Files: %d, Features / s: %f\n",
-		numberoffeautures,
-		featurescreated,
+		"\rInitial Map| %.1f%% | Features: %dk | Features Created: %dk | Number of Files: %d | Features / s: %d",
+		percent_read*100,
+		numberoffeautures/1000,
+		featurescreated/1000,
 		numberoffiles,
-		timepassed,
+		int(float64(numberoffeautures)/timepassed),
 	)
 }
 
@@ -392,6 +428,11 @@ func MapGeobuf(filename string,mapfunc TileMap, tileconfig *TileConfig) {
 		tileconfig.OutputFileName = "new_mapped.geobuf"
 	}
 
+	if tileconfig.Concurrent == 0 {
+		tileconfig.Concurrent = 1000
+	}
+
+
 	logger := LoggingInitialMap{time.Now()}
 
 	// determining the largest size zoom we can start at
@@ -403,17 +444,28 @@ func MapGeobuf(filename string,mapfunc TileMap, tileconfig *TileConfig) {
 	}	
 	StartZoom = currentzoom
 	EndZoom = tileconfig.Zoom
+	
+	// getting size
+	filesize := GetSize(filename)
+
+
 	// creating tile buffer
 	buf := g.ReaderFile(filename)
-
+	
 	// creating new splitter 
 	// this abstracts away an underlying mapping process out of memory
 	splitter := NewSplitter(buf)
 
 	// iterating through each feature
 	i := 0
+	features := []*geojson.Feature{}
 	for buf.Next() {
 		feature := buf.Feature()
+		features = append(features,feature)
+
+
+		/*
+		THIS ADDS CONCURRENCY LEAVING HERE IF I DECIDE TO CHANGE SHIT
 		tmpbb := feature.BoundingBox
 		newbb := m.Extrema{W:tmpbb[0],S:tmpbb[1],E:tmpbb[2],N:tmpbb[3]}
 
@@ -427,14 +479,21 @@ func MapGeobuf(filename string,mapfunc TileMap, tileconfig *TileConfig) {
 				splitter.AddFeature(m.TilestrFile(tile),v)			
 			}
 		}
-		
-		if i%1000==0 {
-			logger.Log(i,splitter.NumberFeatures,len(splitter.SplitMap))
+		*/
+
+		if len(features) == tileconfig.Concurrent {
+			concurrentfeatures(features, splitter, tileconfig.Bounds, tileconfig.Zoom,currentzoom, mapfunc)
+			features = []*geojson.Feature{}
 		}
-
-
+		if i%tileconfig.Concurrent==0 {
+			percent_read := float64(buf.Reader.TotalPosition)/float64(filesize)
+			logger.Log(i,splitter.NumberFeatures,len(splitter.SplitMap),percent_read)
+		}
 		i++
 	}
+
+
+	concurrentfeatures(features, splitter, tileconfig.Bounds, tileconfig.Zoom,currentzoom, mapfunc)
 
 	// combining all the files
 	splitter.Combine()
