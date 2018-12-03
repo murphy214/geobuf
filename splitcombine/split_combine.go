@@ -48,6 +48,7 @@ func GetSizeGrid(bb m.Extrema,zoom int) int {
 	tile2 := m.Tile(sw[0],sw[1],zoom)
 	deltax := math.Abs(float64(tile1.X - tile2.X))
 	deltay := math.Abs(float64(tile1.Y - tile2.Y))
+	fmt.Println(deltax*deltay)
 	return int(deltax * deltay)
 }
 
@@ -119,14 +120,14 @@ func PushTwoBoundingBoxs(bb1, bb2 m.Extrema) m.Extrema {
 func GetSize(filename string) int {
 	file, err := os.Open(filename)
 	if err != nil {
-		fmt.Println(err)
+		return 0
 	}
 	defer file.Close()
 
 	fi, err := file.Stat()
 	if err != nil {
 		// Could not obtain stat, handle error
-		fmt.Println(err)
+		return 0
 	}
 
 	return int(fi.Size())
@@ -438,10 +439,11 @@ func MapGeobuf(filename string,mapfunc TileMap, tileconfig *TileConfig) {
 	// determining the largest size zoom we can start at
 	size := GetSizeGrid(tileconfig.Bounds,tileconfig.Zoom)
 	currentzoom := tileconfig.Zoom
-	for size > 1024 {
+	for size > 750 {
 		size = size / 4 
 		currentzoom--
 	}	
+
 	StartZoom = currentzoom
 	EndZoom = tileconfig.Zoom
 	
@@ -502,6 +504,7 @@ func MapGeobuf(filename string,mapfunc TileMap, tileconfig *TileConfig) {
 	// this code steps through a zoom level with steps as large as possible (4) 256 max open files
 	// for every one of these jumps we require an read / write of the entire file
 	// luckily this is almost pure i/o 
+	fmt.Println("Starting in-place split combine on mapped features.")
 	for currentzoom != tileconfig.Zoom {
 		// determing the step we will take
 		var delta int
@@ -511,14 +514,16 @@ func MapGeobuf(filename string,mapfunc TileMap, tileconfig *TileConfig) {
 			delta = 4
 		}
 		currentzoom+=delta
+		fmt.Printf("Top level, Current zoom changed: %d, delta: %d\n",currentzoom,delta)
 		// opening current geobuf iteration & getting filemap
 		newbuf := g.ReaderFile("new.geobuf")
 		filemap := newbuf.MetaData.Files
 		newlist := []string{}
+		i := 0
 		for k := range filemap {
 			// putting read cursor at the start of the tile k block
 			newbuf.SubFileSeek(k)
-
+			fmt.Printf("\rRemapping subfile %v to zoom %v subfiles.",k,m.Children(m.TileFromString(k)))
 			// creating the subsplitter
 			// and passing through the current split to the next zoom
 			subsplitter := NewSplitter(newbuf)
