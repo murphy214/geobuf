@@ -208,6 +208,14 @@ func (reader *Reader) ReadIndFeature(inds [2]int) *geojson.Feature {
 	return ReadFeature(bytevals)
 }
 
+// a simple read of the bytes between two indices in a reader
+func (reader *Reader) ReadIndicies(inds [2]int) []byte {
+	bytevals := make([]byte, inds[1]-inds[0])
+	reader.File.ReadAt(bytevals, int64(inds[0]))
+	return bytevals
+}
+
+
 // this functions types into the underlying protoscan implementation
 // and reconfigures the protoscan to start reading a certain position
 func (reader *Reader) Seek(pos int) {
@@ -276,6 +284,16 @@ func (reader *Reader) SubFileSeek(key string) {
 
 	// sets the end of the subfile
 	reader.SubFileEnd = subfile.Positions[1]
+}
+
+// this function takes a subfile map key and reads the entire byte array from the 
+// the section fo the file and returns a NEW geobuf reader object
+func (reader *Reader) SubFileBytes(key string) *Reader {
+	subfile,boolval := reader.MetaData.Files[key]
+	if boolval {
+		return ReaderBuf(reader.ReadIndicies(subfile.Positions))	
+	} 
+	return ReaderBuf([]byte{})
 }
 
 // alias for the Scan method on reader

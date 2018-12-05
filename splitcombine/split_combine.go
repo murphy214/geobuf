@@ -523,7 +523,7 @@ func MapGeobuf(filename string,mapfunc TileMap, tileconfig *TileConfig) {
 		for k := range filemap {
 			// putting read cursor at the start of the tile k block
 			newbuf.SubFileSeek(k)
-			fmt.Printf("\rRemapping subfile %v to zoom %v subfiles.",k,m.Children(m.TileFromString(k)))
+			fmt.Printf("\rRemapping subfile %v to zoom %d subfiles [%d/%d]",k,currentzoom,i,len(filemap))
 			// creating the subsplitter
 			// and passing through the current split to the next zoom
 			subsplitter := NewSplitter(newbuf)
@@ -540,6 +540,7 @@ func MapGeobuf(filename string,mapfunc TileMap, tileconfig *TileConfig) {
 			subsplitter.Combine()
 			os.Rename("tmp.geobuf",k+".geobuf")
 			newlist = append(newlist,k+".geobuf")
+			i++
 		}
 
 		// cleaning up each iteration
