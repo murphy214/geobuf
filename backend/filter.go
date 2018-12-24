@@ -1,9 +1,10 @@
 package backend
 
 import (
+	m "github.com/murphy214/mercantile"
 	"github.com/paulmach/go.geojson"
 	"reflect"
-	"fmt"
+	
 )
 
 type Operator string
@@ -18,19 +19,18 @@ var GreaterThan Operator = ">"
 var GreaterThanOrEqual Operator = ">="
 var LessThan Operator = "<"
 var LessThanOrEqual Operator = "<="
-var Equal Operator = "="
+var Equal Operator = "=="
 var NotEqual Operator = "!="
 
 // other operators
-var Any Operator = "any"   // operator for if this key exists
-var None Operator = "none" // operator for if this doesn't exist
+var Any Operator = "in"   // operator for if this key exists
+var None Operator = "!in" // operator for if this doesn't exist
 
 // special operators
-var Within Operator = "within"
 var Intersects Operator = "intersects"
 
 // special keys
-var GeometryType = "GeometryType"
+var GeometryType = "$type"
 var ID = "ID"
 var Area = "AREA"
 
@@ -38,14 +38,53 @@ var Area = "AREA"
 type FeatureFilter struct {
 	Operator    Operator
 	Filters     []*FeatureFilter
+	Map 		map[string]string
+	Bounds 		m.Extrema
 	Key         string
 	FloatValue  float64
 	StringValue string
 	StringBool  bool
 	BoolValue   bool
 	BoolBool    bool
+	InBool 		bool
+	BoundsBool 	bool
 	Area        float64
 }
+
+
+// structure for finding overlapping values
+func Overlapping_1D(box1min float64,box1max float64,box2min float64,box2max float64) bool {
+	if box1max >= box2min && box2max >= box1min {
+		return true
+	} else {
+		return false
+	}
+	return false
+}
+
+
+// returns a boolval for whether or not the bb intersects
+func IntersectBB(bdsref m.Extrema,bds m.Extrema) bool {
+	if Overlapping_1D(bdsref.W,bdsref.E,bds.W,bds.E) && Overlapping_1D(bdsref.S,bdsref.N,bds.S,bds.N) {
+		return true
+	} else {
+		return false
+	}
+
+	return false
+}
+
+// returns a bool for within filter
+func Within(bdsref,bds m.Extrema) bool {
+	return bdsref.W <= bds.W && bdsref.S <= bds.S && bdsref.E >= bds.E && bdsref.N >= bds.N 
+}
+
+// returns whether a box intersects
+func IntersectsAll(bds,bdsref m.Extrema) bool {
+	return Within(bdsref,bds) || Within(bds,bdsref) || IntersectBB(bdsref, bds)
+}
+
+
 
 //
 func (filter *FeatureFilter) Filter(feature *geojson.Feature) bool {
@@ -62,6 +101,9 @@ func (filter *FeatureFilter) Filter(feature *geojson.Feature) bool {
 			switch filter.Operator {
 			case AndOperator:
 				boolval = boolval && tempbool
+				if !boolval {
+					return boolval
+				}
 			case OrOperator:
 				boolval = boolval || tempbool
 			case XorOperator:
@@ -117,6 +159,35 @@ func (filter *FeatureFilter) Filter(feature *geojson.Feature) bool {
 		case Area:
 			// area case
 		default:
+			// logic for in bool filter
+			if filter.InBool {
+				val, boolval := feature.Properties[filter.Key]
+				valstring,boolval2 := val.(string)
+				if boolval && boolval2 {
+					_,boolval := filter.Map[valstring]
+					if filter.Operator == Any {
+						if boolval {
+							return true
+						} else {
+							return false
+						}
+					} else if filter.Operator == None {
+						if boolval {
+							return false
+						} else {
+							return true
+						}
+					}
+				}
+			}
+
+			// filters about the bounds
+			if filter.BoundsBool && len(feature.BoundingBox) == 4 {
+				w,s,e,n := feature.BoundingBox[0],feature.BoundingBox[1],feature.BoundingBox[2],feature.BoundingBox[3]
+				return IntersectsAll(m.Extrema{N:n,S:s,E:e,W:w}, filter.Bounds)
+			}
+
+
 			if filter.BoolBool {
 				val, boolval := feature.Properties[filter.Key]
 				if boolval {
@@ -242,32 +313,76 @@ func ParseFeatureFilter(op Operator,key string,singeinterface interface{}) *Feat
 }
 
 
-func EncodeFromInterface(op Operator,key string,value interface{}) *FeatureFilter {
-	total := &FeatureFilter{}
-	mult,boolval := value.([]interface{})
+// parses a simple feature filter
+func ParseSimple(vals []interface{}) *FeatureFilter {
+	opp,boolval := vals[0].(string)
+	op := Operator(opp)
 	if boolval {
-		tempop := Operator(mult[0].(string))
-		for _,i := range mult {
-			for tempop == AndOperator || tempop == OrOperator {
+		switch op {
+		case Equal,NotEqual,GreaterThan,GreaterThanOrEqual,LessThan,LessThanOrEqual:
+			return ParseFeatureFilter(op, vals[1].(string), vals[2])		
+		case Any,None:
+			key := vals[1].(string)
+			newmap := map[string]string{}
+			for _,myval := range vals[2:] {
+				myvals,boolval := myval.(string)
+				if boolval {
+					newmap[myvals] = ""
+				}
+			}
+			return &FeatureFilter{
+				Operator:op,
+				Map:newmap,
+				InBool:true,
+				Key:key,
+			}
+		case Intersects:
+			key := vals[1].(string)
+			bdsarr2 := vals[2].([]interface{})
+			bdsarr := make([]float64,len(bdsarr2))
+			for pos,val := range bdsarr2 {
+				vall,boolval := val.(float64)
+				if boolval {
+					bdsarr[pos] = vall
+				}
+			}
 
-				total.Filters = append(total.Filters,EncodeFromInterface(tempop,"",newmult))
+			var ext m.Extrema
+			if len(bdsarr) == 4 {
+				w,s,e,n := bdsarr[0],bdsarr[1],bdsarr[2],bdsarr[3]
+				ext = m.Extrema{W:w,S:s,E:e,N:n}
+				return &FeatureFilter{
+					Operator:op,
+					Bounds:ext,
+					BoundsBool:true,
+					Key:key,
+				}
+			}
+		} 
+	}
+	return &FeatureFilter{}
+}
+
+// given a blank interface containing a mapbox-gl js feature filter returns a feature filter for the backend
+func ParseAll(vals []interface{}) *FeatureFilter {
+	opp,boolval := vals[0].(string)
+	op := Operator(opp)
+	if boolval {
+		switch op {
+		case AndOperator,OrOperator:
+			myfilter := &FeatureFilter{Operator:op}
+			for _,val := range vals[1:] {
+				valss,boolval := val.([]interface{})
+				if boolval {
+					myfilter.Filters = append(myfilter.Filters,ParseSimple(valss))
+				}
+			}
+			return myfilter
+		default:
+			if boolval {
+				return ParseSimple(vals)
 			}
 		}
-		fmt.Println(mult,tempop)
-		if tempop == AndOperator || tempop == OrOperator {
-
-			newmult := mult[1]
-			total.Filters = append(total.Filters,EncodeFromInterface(tempop,"",newmult))
-			//for _,i := range newmult {
-			//	total.Filters = append(total.Filters,EncodeFromInterface(tempop,"",i))
-			//}		
-		}
-		total.Operator = tempop
-	
-	} else {
-		total = ParseFeatureFilter(op,key,value)
 	}
-
-	return total
-
+	return &FeatureFilter{}
 }

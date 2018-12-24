@@ -1,10 +1,14 @@
 package backend
 
 import (
+	m "github.com/murphy214/mercantile"
 	g "github.com/murphy214/geobuf"
 	//"github.com/murphy214/paulmach"
 	"bytes"
 	"fmt"
+	"encoding/json"
+	"strconv"
+	"net/url"
 	"github.com/murphy214/geobuf/geobuf_raw"
 )
 
@@ -13,6 +17,70 @@ import (
 type Backend struct {
 	Geobuf *g.Reader
 	Limit int // defaults to 1 million
+	TileBool bool // whether or not the data is tiled
+	Zoom int // the zoom the data is tiled at 	
+}
+
+// This structure parses a map context and returns a filter
+type MapContext struct {
+	Bounds m.Extrema
+	Zoom float64
+	Filter *FeatureFilter
+}
+
+// adds the underlying bounds to the mapcontext filter
+func (mapcontext *MapContext) AddBounds() *MapContext {
+	newfilt := &FeatureFilter{
+		Bounds:mapcontext.Bounds,
+		BoundsBool:true,
+		Key:"$geometry",
+		Operator:Intersects,
+	}
+	mapcontext.Filter = &FeatureFilter{
+		Operator:AndOperator,
+		Filters:[]*FeatureFilter{newfilt,mapcontext.Filter},
+	}
+	return mapcontext
+}
+
+// parses a given string query from a url 
+func ParseQuery(stringval string) *MapContext {
+	val := &MapContext{}
+	mv, err := url.ParseQuery(stringval)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// getting the filter string
+	filterstr := mv["filter"][0]
+	var mm []interface{}
+	err = json.Unmarshal([]byte(filterstr),&mm)
+	if err != nil {
+		fmt.Println(err)
+	}
+	val.Filter = ParseAll(mm)
+	
+	// getting the bounds string
+	bds_str := mv["bounds"][0]
+	var vv []float64
+	err = json.Unmarshal([]byte(bds_str), &vv)
+	if err != nil {
+		fmt.Println(err)
+	}
+	if len(vv) == 4 {
+		w,s,e,n := vv[0],vv[1],vv[2],vv[3]
+		val.Bounds = m.Extrema{N:n,S:s,E:e,W:w}
+	}	
+	
+	// getting the zoom string
+	zoomstr := mv["zoom"][0]
+	zoom,err := strconv.ParseFloat(zoomstr,64)
+	if err != nil {
+		fmt.Println(err)
+	}
+	val.Zoom = zoom
+
+	return val.AddBounds()
 }
 
 

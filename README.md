@@ -18,7 +18,8 @@ As for the pretty beefy properties sizes that my features have, instead of using
 * Straightforward Reader / Writer methods for everything thing that is done to geobufs 
 * **Expect at least 5-10x performance gains in both read / write against line-delimited geojson**
 * CLI executables to convert to and from geobuf from geojson 
-* Inplace geobuf sorts to do things like feature mapping about a file out of memory for tiling 
+* Inplace geobuf sorts to do things like feature mapping about a file out of memory for tiling (AKA mapreduce)
+* Backend for filters for quick visualizations
 
 #### Internals
 
@@ -64,5 +65,11 @@ message FeatureCollection {
 }
 ```
 
+
 #### Usage 
 
+Reading and writing geojson features is pretty easy there are two types of data stores, raw byte buffers or file buffers. They basically work the same way but one reads / writes from an underlying file while the other reads / writes from a buffer.
+
+**Currently I don't suggest using concurrent reads because the speed gains while signicant don't make up for the brittleness of the API currently more work has to be done to make this more useful.** 
+
+That being said plain reads are far faster than line-delimitted JSON and still offer a unified API. 
