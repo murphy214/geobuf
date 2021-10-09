@@ -1,7 +1,6 @@
 package geobuf
 
 import (
-	"github.com/murphy214/ld-geojson"
 	"github.com/paulmach/go.geojson"
 	"io/ioutil"
 	"testing"
@@ -21,21 +20,6 @@ func BenchmarkReadFeatureCollection(b *testing.B) {
 		bytevals, _ := ioutil.ReadFile("test_data/county.geojson")
 		//fmt.Println(string(bytevals))
 		geojson.UnmarshalFeatureCollection(bytevals)
-	}
-}
-
-// this benchmakrs a write feature collection
-func BenchmarkReadFeatureCollectionLineDelimitted(b *testing.B) {
-	b.ReportAllocs()
-
-	for n := 0; n < b.N; n++ {
-		ld := ld_geojson.Read_LD_Geojson("test_data/ld.geojson")
-		for ld.Next() {
-
-			ld.Feature()
-			//fmt.Println(geobuf.Feature())
-		}
-		//fmt.Println(string(bytevals))
 	}
 }
 
