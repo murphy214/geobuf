@@ -92,3 +92,39 @@ func ReadFeature(bytevals []byte) *geojson.Feature {
 	}
 	return feature
 }
+
+
+// reads a feature
+func ReadBB(bytevals []byte) []float64 {
+	pbfval := pbf.PBF{Pbf: bytevals, Length: len(bytevals)}
+
+	key, val := pbfval.ReadKey()
+	if key == 1 && val == 0 {
+		pbfval.ReadVarint()
+		key, val = pbfval.ReadKey()
+	}
+	for key == 2 && val == 2 {
+		// starting properties shit here
+
+		size := pbfval.ReadVarint()
+		endpos := pbfval.Pos + size
+		pbfval.Pos = endpos
+		key, val = pbfval.ReadKey()
+	}
+	if key == 3 && val == 0 {
+		pbfval.Pos += 1
+		key, val = pbfval.ReadKey()
+	}
+	if key == 4 && val == 2 {
+		size := pbfval.ReadVarint()
+		endpos := pbfval.Pos + size
+		pbfval.Pos = endpos
+		key, val = pbfval.ReadKey()
+
+	}
+	if key == 5 && val == 2 {
+		return pbfval.ReadBoundingBox()
+	}
+	return []float64{}
+}
+
