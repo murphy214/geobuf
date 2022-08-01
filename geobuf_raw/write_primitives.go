@@ -248,7 +248,7 @@ func WriteValue(value interface{}) []byte {
 	// switching for each type
 	switch kd {
 	case reflect.String:
-		if len(vv.String()) > 0 {
+		if len(vv.String()) >= 0 {
 			size := uint64(len(vv.String()))
 			size_bytes := pbf.EncodeVarint(size)
 			bytevals := []byte{10}
