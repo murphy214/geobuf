@@ -1,11 +1,14 @@
 package geobuf
 
 import (
+	"encoding/csv"
 	"fmt"
-	"github.com/paulmach/go.geojson"
 	"io/ioutil"
 	"os"
 	"sync"
+
+	"github.com/paulmach/go.geojson"
+
 	//"log"
 	//"io"
 	"strings"
@@ -138,6 +141,45 @@ func AddFeatures(geobuf *Writer, feats []string, count int, s time.Time) int {
 	return count
 }
 
+
+
+// adds featuers
+func AddFeaturesCSV(w *csv.Writer,keys []string, feats []string, count int, s time.Time) int {
+	var m sync.Mutex
+	var wg sync.WaitGroup
+	for _, i := range feats {
+		wg.Add(1)
+		go func(i string) {
+			//fmt.Println(i)
+			//fmt.Println(i+"}")
+			if len(i) > 0 {
+				feat, err := geojson.UnmarshalFeature([]byte(i))
+				//fmt.Println(i,feat)
+				if err != nil {
+					fmt.Println(err, feat)
+				} else {
+					if feat.Geometry != nil {
+						//fmt.Println(ReadFeature(geobuf_raw.WriteFeature(feat)).Geometry)
+						m.Lock()
+						WriteRowNew(feat,keys,w)
+						m.Unlock()
+						// w.WriteFeature(feat)
+					} else {
+						fmt.Println(feat)
+					}
+				}
+			}
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
+	count += len(feats)
+	// fmt.Printf("\r%d csv features written from raw geojson string in %s", count, time.Now().Sub(s))
+
+	return count
+}
+
+
 func GetFilesize(filename string) int {
 	fi, err := os.Stat(filename)
 	if err != nil {
@@ -163,6 +205,36 @@ func ConvertGeojson(infile string, outfile string) {
 		feats = geojsonfile.ReadChunk(size)
 		count = AddFeatures(geobuf, feats, count, s)
 	}
+}
+
+
+// function used for converting geojson to geobuf
+func ReadGeoJSONCSV(infile string) {
+	s := time.Now()
+	size := GetFilesize(infile)
+
+	// geobuf := WriterFileNew(outfile)
+	geojsonfile := NewGeojson(infile)
+	count := 0
+	feats := []string{"d"}
+	//fmt.Println(feats)
+	w := csv.NewWriter(os.Stdout)
+	keys := []string{}
+	for len(feats) > 0 {
+		feats = geojsonfile.ReadChunk(size)
+		if len(keys)==0 && len(feats) > 0 {
+			feat,_ := geojson.UnmarshalFeature([]byte(feats[0])) 
+			newlist := []string{}
+			for k := range feat.Properties {
+				newlist = append(newlist,k)
+			}
+			newlist = append(newlist,[]string{"Bounds", "Type", "Geometry"}...)
+			keys = newlist 
+			w.Write(keys)
+		}
+		count = AddFeaturesCSV(w,keys, feats, count, s)
+	}
+	w.Flush()
 }
 
 // function used for converting geojson to geobuf

@@ -1,13 +1,17 @@
 package geobuf
 
 import (
+	"encoding/csv"
 	"fmt"
+
 	"github.com/murphy214/geobuf/geobuf_raw"
+
 	//"encoding/csv"
-	"github.com/paulmach/go.geojson"
 	"io"
 	"os"
 	"strings"
+
+	"github.com/paulmach/go.geojson"
 	//"time"
 	//"io/ioutil"
 )
@@ -204,6 +208,62 @@ func WriteRow(feature *geojson.Feature, keys []string) {
 	}
 	io.WriteString(os.Stdout, strings.Join(newrow, "|")+"\n")
 }
+
+func WriteRowNew(feature *geojson.Feature, keys []string,w *csv.Writer) {
+	bounds := GetBoundingBox(feature.Geometry)
+	if (!strings.Contains(string(feature.Geometry.Type),"Point")) {
+		feature.Properties["Bounds"] = fmt.Sprintf("%f,%f,%f,%f", bounds[0], bounds[1], bounds[2], bounds[3]) 
+	} else {
+		feature.Properties["Bounds"] = ""
+	}
+	feature.Properties["Type"] = string(feature.Geometry.Type)
+	s, _ := feature.Geometry.MarshalJSON()
+
+	feature.Properties["Geometry"] = string(s)
+	newrow := make([]string, len(keys))
+	for pos, key := range keys {
+		val, boolval := feature.Properties[key]
+		//fmt.Println(fmt.Sprint(val), val, feature.Properties)
+		if !boolval {
+			val = ""
+		}
+		if key != "Geometry" {
+			newrow[pos] = fmt.Sprint(val)
+		} else {
+			newrow[pos] = val.(string)
+		}
+	}
+	w.Write(newrow)
+	// io.WriteString(w, strings.Join(newrow, "|")+"\n")
+}
+
+
+func ReadGeobufCSVNew(filename string) { 
+	buf := ReaderFile(filename)
+	mymap := map[string]string{}
+	for buf.Next() {
+		feat := buf.Feature()
+		for k := range feat.Properties {
+			mymap[k] = ""
+		}
+	}
+	headers := make([]string,len(mymap)) 
+	i := 0 
+	for k := range mymap {
+		headers[i] = k
+		i++
+	}
+	headers = append(headers, []string{"Bounds", "Type", "Geometry"}...)
+	w := csv.NewWriter(os.Stdout)
+	w.Write(headers)
+	buf.Reset()
+	for buf.Next() {
+		feat := buf.Feature()
+		WriteRowNew(feat,headers,w)
+	}
+	w.Flush()
+}
+
 
 func ReadGeobufCSV(filename string) {
 	buf := ReaderFile(filename)
