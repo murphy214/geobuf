@@ -1,13 +1,13 @@
 package geobuf_raw
 
 import (
-	"github.com/murphy214/pbf"
+	pbff "github.com/murphy214/pbf"
 	"github.com/paulmach/go.geojson"
 )
 
 // reads a feature
 func ReadFeature(bytevals []byte) *geojson.Feature {
-	pbfval := pbf.PBF{Pbf: bytevals, Length: len(bytevals)}
+	pbfval := pbff.PBF{Pbf: bytevals, Length: len(bytevals)}
 	var geomtype string
 	feature := &geojson.Feature{Properties: map[string]interface{}{}}
 
@@ -71,24 +71,24 @@ func ReadFeature(bytevals []byte) *geojson.Feature {
 
 		switch geomtype {
 		case "Point":
-			feature.Geometry = geojson.NewPointGeometry(pbfval.ReadPoint(endpos))
+			feature.Geometry = geojson.NewPointGeometry(ReadPoint(pbfval,endpos))
 		case "LineString":
-			feature.Geometry = geojson.NewLineStringGeometry(pbfval.ReadLine(0, endpos))
+			feature.Geometry = geojson.NewLineStringGeometry(ReadLine(pbfval,0, endpos))
 		case "Polygon":
-			feature.Geometry = geojson.NewPolygonGeometry(pbfval.ReadPolygon(endpos))
+			feature.Geometry = geojson.NewPolygonGeometry(ReadPolygon(pbfval,endpos))
 		case "MultiPoint":
-			feature.Geometry = geojson.NewMultiPointGeometry(pbfval.ReadLine(0, endpos)...)
+			feature.Geometry = geojson.NewMultiPointGeometry(ReadLine(pbfval,0, endpos)...)
 		case "MultiLineString":
-			feature.Geometry = geojson.NewMultiLineStringGeometry(pbfval.ReadPolygon(endpos)...)
+			feature.Geometry = geojson.NewMultiLineStringGeometry(ReadPolygon(pbfval,endpos)...)
 		case "MultiPolygon":
-			feature.Geometry = geojson.NewMultiPolygonGeometry(pbfval.ReadMultiPolygon(endpos)...)
+			feature.Geometry = geojson.NewMultiPolygonGeometry(ReadMultiPolygon(pbfval,endpos)...)
 
 		}
 		key, val = pbfval.ReadKey()
 
 	}
 	if key == 5 && val == 2 {
-		feature.BoundingBox = pbfval.ReadBoundingBox()
+		feature.BoundingBox = ReadBoundingBox(pbfval)
 	}
 	return feature
 }
@@ -96,7 +96,7 @@ func ReadFeature(bytevals []byte) *geojson.Feature {
 
 // reads a feature
 func ReadBB(bytevals []byte) []float64 {
-	pbfval := pbf.PBF{Pbf: bytevals, Length: len(bytevals)}
+	pbfval := pbff.PBF{Pbf: bytevals, Length: len(bytevals)}
 
 	key, val := pbfval.ReadKey()
 	if key == 1 && val == 0 {
@@ -123,8 +123,91 @@ func ReadBB(bytevals []byte) []float64 {
 
 	}
 	if key == 5 && val == 2 {
-		return pbfval.ReadBoundingBox()
+		return ReadBoundingBox(pbfval)
 	}
 	return []float64{}
 }
 
+
+
+// TO-DO: needs to be abstracted out into appropriate geobuf package
+// geobuf functions i still have in here
+func ReadPoint(pbf pbff.PBF,endpos int) []float64 {
+	for pbf.Pos < endpos {
+		x := pbf.ReadSVarintPower()
+		y := pbf.ReadSVarintPower()
+		return []float64{pbff.Round(x, .5, 7), pbff.Round(y, .5, 7)}
+	}
+	return []float64{}
+}
+
+// TO-DO: needs to be abstracted out into appropriate geobuf package
+// reads a line
+func ReadLine(pbf pbff.PBF,num int, endpos int) [][]float64 {
+	var x, y float64
+	if num == 0 {
+
+		for startpos := pbf.Pos; startpos < endpos; startpos++ {
+			if pbf.Pbf[startpos] <= 127 {
+				num += 1
+			}
+		}
+		newlist := make([][]float64, num/2)
+
+		for i := 0; i < num/2; i++ {
+			x += pbf.ReadSVarintPower()
+			y += pbf.ReadSVarintPower()
+			newlist[i] = []float64{pbff.Round(x, .5, 7), pbff.Round(y, .5, 7)}
+		}
+
+		return newlist
+	} else {
+		newlist := make([][]float64, num/2)
+
+		for i := 0; i < num/2; i++ {
+			x += pbf.ReadSVarintPower()
+			y += pbf.ReadSVarintPower()
+
+			newlist[i] = []float64{pbff.Round(x, .5, 7), pbff.Round(y, .5, 7)}
+
+		}
+		return newlist
+	}
+	return [][]float64{}
+}
+
+// TO-DO: needs to be abstracted out into appropriate geobuf package
+func ReadPolygon(pbf pbff.PBF,endpos int) [][][]float64 {
+	polygon := [][][]float64{}
+	for pbf.Pos < endpos {
+		num := pbf.ReadVarint()
+		polygon = append(polygon, ReadLine(pbf,num, endpos))
+	}
+	return polygon
+}
+
+// TO-DO: needs to be abstracted out into appropriate geobuf package
+func ReadMultiPolygon(pbf pbff.PBF,endpos int) [][][][]float64 {
+	multipolygon := [][][][]float64{}
+	for pbf.Pos < endpos {
+		num_rings := pbf.ReadVarint()
+		polygon := make([][][]float64, num_rings)
+		for i := 0; i < num_rings; i++ {
+			num := pbf.ReadVarint()
+			polygon[i] = ReadLine(pbf,num, endpos)
+		}
+		multipolygon = append(multipolygon, polygon)
+	}
+	return multipolygon
+}
+
+// TO-DO: needs to be abstracted out into appropriate geobuf package
+func ReadBoundingBox(pbf pbff.PBF) []float64 {
+	bb := make([]float64, 4)
+	pbf.ReadVarint()
+	bb[0] = float64(pbf.ReadSVarintPower())
+	bb[1] = float64(pbf.ReadSVarintPower())
+	bb[2] = float64(pbf.ReadSVarintPower())
+	bb[3] = float64(pbf.ReadSVarintPower())
+	return bb
+}
