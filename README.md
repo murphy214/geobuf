@@ -20,6 +20,10 @@ As for the pretty beefy properties sizes that my features have, instead of using
 * CLI executables to convert to and from geobuf from geojson 
 * Inplace geobuf sorts to do things like feature mapping about a file out of memory for tiling 
 
+#### Do you need compatibility with Mapbox's Geobuf format?
+
+The protobuf structure used in this repository is not compatible with Mapbox's Geobuf format, for reasons explained above. If you need Mapbox Geobuf compatibility here is another Go library to check out: https://github.com/cairnapp/go-geobuf
+
 #### Internals
 
 Below is the geobuf proto file that this implementation is based. 
