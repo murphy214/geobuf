@@ -28,7 +28,7 @@ The protobuf structure used in this repository is not compatible with Mapbox's G
 
 Below is the geobuf proto file that this implementation is based. 
 
-```
+```protobuf
 syntax = "proto3";
 
 // Variant type encoding
