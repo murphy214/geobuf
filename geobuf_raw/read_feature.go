@@ -71,24 +71,24 @@ func ReadFeature(bytevals []byte) *geojson.Feature {
 
 		switch geomtype {
 		case "Point":
-			feature.Geometry = geojson.NewPointGeometry(pbfval.ReadPoint(endpos))
+			feature.Geometry = geojson.NewPointGeometry(readpoint(pbfval,endpos))
 		case "LineString":
-			feature.Geometry = geojson.NewLineStringGeometry(pbfval.ReadLine(0, endpos))
+			feature.Geometry = geojson.NewLineStringGeometry(readline(pbfval,0, endpos))
 		case "Polygon":
-			feature.Geometry = geojson.NewPolygonGeometry(pbfval.ReadPolygon(endpos))
+			feature.Geometry = geojson.NewPolygonGeometry(readpolygon(pbfval,endpos))
 		case "MultiPoint":
-			feature.Geometry = geojson.NewMultiPointGeometry(pbfval.ReadLine(0, endpos)...)
+			feature.Geometry = geojson.NewMultiPointGeometry(readline(pbfval,0, endpos)...)
 		case "MultiLineString":
-			feature.Geometry = geojson.NewMultiLineStringGeometry(pbfval.ReadPolygon(endpos)...)
+			feature.Geometry = geojson.NewMultiLineStringGeometry(readpolygon(pbfval,endpos)...)
 		case "MultiPolygon":
-			feature.Geometry = geojson.NewMultiPolygonGeometry(pbfval.ReadMultiPolygon(endpos)...)
+			feature.Geometry = geojson.NewMultiPolygonGeometry(readmultipolygon(pbfval,endpos)...)
 
 		}
 		key, val = pbfval.ReadKey()
 
 	}
 	if key == 5 && val == 2 {
-		feature.BoundingBox = pbfval.ReadBoundingBox()
+		feature.BoundingBox = readboundingbox(pbfval)
 	}
 	return feature
 }
@@ -123,7 +123,7 @@ func ReadBB(bytevals []byte) []float64 {
 
 	}
 	if key == 5 && val == 2 {
-		return pbfval.ReadBoundingBox()
+		return readboundingbox(pbfval)
 	}
 	return []float64{}
 }
