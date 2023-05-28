@@ -9,6 +9,7 @@ import (
 func ReadFeature(bytevals []byte) *geojson.Feature {
 	pbfval := pbf.PBF{Pbf: bytevals, Length: len(bytevals)}
 	var geomtype string
+	var geomcode,dimsize int
 	feature := &geojson.Feature{Properties: map[string]interface{}{}}
 
 	key, val := pbfval.ReadKey()
@@ -48,7 +49,9 @@ func ReadFeature(bytevals []byte) *geojson.Feature {
 		key, val = pbfval.ReadKey()
 	}
 	if key == 3 && val == 0 {
-		switch int(pbfval.Pbf[pbfval.Pos]) {
+		geomcode,dimsize = geomcode_details(int(pbfval.Pbf[pbfval.Pos]))
+		// println(geomcode,dimsize,int(pbfval.Pbf[pbfval.Pos]))
+		switch geomcode {
 		case 1:
 			geomtype = "Point"
 		case 2:
@@ -61,6 +64,8 @@ func ReadFeature(bytevals []byte) *geojson.Feature {
 			geomtype = "MultiLineString"
 		case 6:
 			geomtype = "MultiPolygon"
+		default:
+			println(dimsize)
 		}
 		pbfval.Pos += 1
 		key, val = pbfval.ReadKey()
@@ -90,9 +95,9 @@ func ReadFeature(bytevals []byte) *geojson.Feature {
 	if key == 5 && val == 2 {
 		feature.BoundingBox = readboundingbox(pbfval)
 	}
+
 	return feature
 }
-
 
 // reads a feature
 func ReadBB(bytevals []byte) []float64 {

@@ -4,7 +4,59 @@ import (
 	"math"
 
 	"github.com/murphy214/pbf"
+	"github.com/paulmach/go.geojson"
 )
+
+
+func getdimsize(geom *geojson.Geometry) int {
+	switch geom.Type {
+	case "Point":
+		return len(geom.Point)
+	case "MultiPoint":
+		if len(geom.MultiPoint)>0 {
+			return len(geom.MultiPoint[0])
+		}
+		return 2 
+	case "LineString":
+		if len(geom.LineString)>0 {
+			return len(geom.LineString[0])
+		}
+		return 2 
+	case "Polygon":
+		if len(geom.Polygon)>0&&len(geom.Polygon[0])>0 {
+			return len(geom.Polygon[0][0])
+		}
+		return 2 
+	case "MultiLineString":
+		if len(geom.MultiLineString)>0&&len(geom.MultiLineString[0])>0 {
+			return len(geom.MultiLineString[0][0])
+		}
+		return 2 
+	case "MultiPolygon":
+		if len(geom.MultiPolygon)>0&&len(geom.MultiPolygon[0])>0&&len(geom.MultiPolygon[0][0])>0 {
+			return len(geom.MultiPolygon[0][0][0])
+		}
+		return 2 
+	default:
+		return 2
+	} 
+}
+
+
+func geomcode_details(x int) (int,int) {
+	if x <= 6 { 
+		return x,2 
+	} else {
+		dim_size := x - ((x >> 4) << 4) 
+		geom_type := x >> 4
+		return geom_type,dim_size 
+	}
+}
+
+func makegeomcode(geom_type,dim_size int) byte {
+	return byte((geom_type << 4) + dim_size)
+}
+
 
 func round(val float64, roundOn float64, places int) (newVal float64) {
 	var round float64
@@ -94,7 +146,7 @@ func readboundingbox(mpbf pbf.PBF) []float64 {
 	return bb
 }
 
-
+// ############### STARTING geom writing
 // converts a single pt
 func ConvertPt(pt []float64) []int64 {
 	newpt := make([]int64, 2)
