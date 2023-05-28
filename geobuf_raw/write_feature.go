@@ -218,30 +218,30 @@ func WriteFeature(feat *geojson.Feature) []byte {
 		case "Point":
 			//
 			newbytes = append(newbytes, []byte{24, makegeomcode(1,dim_size)}...)
-			geomb := writepointbs(feat.Geometry.Point)
+			geomb := writepointbs(feat.Geometry.Point,dim_size)
 			newbytes = append(newbytes, geomb...)
 		case "LineString":
 			//
 			newbytes = append(newbytes, []byte{24, makegeomcode(2,dim_size)}...)
-			geomb, _ := writelinebs(feat.Geometry.LineString)
+			geomb, _ := writelinebs(feat.Geometry.LineString,dim_size)
 			newbytes = append(newbytes, geomb...)
 		case "Polygon":
 			// here
 			newbytes = append(newbytes, []byte{24, makegeomcode(3,dim_size)}...)
-			geomb, _ := writepolygonbs(feat.Geometry.Polygon)
+			geomb, _ := writepolygonbs(feat.Geometry.Polygon,dim_size)
 			newbytes = append(newbytes, geomb...)
 		case "MultiPoint":
 			// here
 			newbytes = append(newbytes, []byte{24, makegeomcode(4,dim_size)}...)
-			geomb, _ := writelinebs(feat.Geometry.MultiPoint)
+			geomb, _ := writelinebs(feat.Geometry.MultiPoint,dim_size)
 			newbytes = append(newbytes, geomb...)
 		case "MultiLineString":
 			newbytes = append(newbytes, []byte{24, makegeomcode(5,dim_size)}...)
-			geomb, _ := writepolygonbs(feat.Geometry.MultiLineString)
+			geomb, _ := writepolygonbs(feat.Geometry.MultiLineString,dim_size)
 			newbytes = append(newbytes, geomb...)
 		case "MultiPolygon":
 			newbytes = append(newbytes, []byte{24, makegeomcode(6,dim_size)}...)
-			geomb, _ := writemultipolygonbs(feat.Geometry.MultiPolygon)
+			geomb, _ := writemultipolygonbs(feat.Geometry.MultiPolygon,dim_size)
 			newbytes = append(newbytes, geomb...)
 		}
 	}

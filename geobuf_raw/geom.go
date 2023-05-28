@@ -2,12 +2,11 @@ package geobuf_raw
 
 import (
 	"math"
-
 	"github.com/murphy214/pbf"
 	"github.com/paulmach/go.geojson"
 )
 
-
+// gets the dimension size of the geometry if possible
 func getdimsize(geom *geojson.Geometry) int {
 	switch geom.Type {
 	case "Point":
@@ -42,7 +41,7 @@ func getdimsize(geom *geojson.Geometry) int {
 	} 
 }
 
-
+// returns the geom_type and dim_size
 func geomcode_details(x int) (int,int) {
 	if x <= 6 { 
 		return x,2 
@@ -53,10 +52,10 @@ func geomcode_details(x int) (int,int) {
 	}
 }
 
+// makes the geometry code with dim_size embedded
 func makegeomcode(geom_type,dim_size int) byte {
 	return byte((geom_type << 4) + dim_size)
 }
-
 
 func round(val float64, roundOn float64, places int) (newVal float64) {
 	var round float64
@@ -72,64 +71,67 @@ func round(val float64, roundOn float64, places int) (newVal float64) {
 	return
 }
 
-func readpoint(mpbf pbf.PBF,endpos int) []float64 {
+func readpoint(mpbf pbf.PBF,endpos int,dim_size int) []float64 {
 	for mpbf.Pos < endpos {
-		x := mpbf.ReadSVarintPower()
-		y := mpbf.ReadSVarintPower()
-		return []float64{round(x, .5, 7), round(y, .5, 7)}
+		pt := make([]float64,dim_size)
+		for j := 0;j < dim_size; j++ {
+			pt[j] += round(mpbf.ReadSVarintPower(),0.5,7)
+		}
+		return pt
 	}
 	return []float64{}
 }
 
-func readpolygon(mpbf pbf.PBF,endpos int) [][][]float64 {
+func readpolygon(mpbf pbf.PBF,endpos int,dim_size int) [][][]float64 {
 	polygon := [][][]float64{}
 	for mpbf.Pos < endpos {
 		num := mpbf.ReadVarint()
-		polygon = append(polygon, readline(mpbf,num, endpos))
+		polygon = append(polygon, readline(mpbf,num, endpos,dim_size))
 	}
 	return polygon
 }
 
-func readmultipolygon(mpbf pbf.PBF,endpos int) [][][][]float64 {
+func readmultipolygon(mpbf pbf.PBF,endpos int,dim_size int) [][][][]float64 {
 	multipolygon := [][][][]float64{}
 	for mpbf.Pos < endpos {
 		num_rings := mpbf.ReadVarint()
 		polygon := make([][][]float64, num_rings)
 		for i := 0; i < num_rings; i++ {
 			num := mpbf.ReadVarint()
-			polygon[i] = readline(mpbf,num, endpos)
+			polygon[i] = readline(mpbf,num, endpos,dim_size)
 		}
 		multipolygon = append(multipolygon, polygon)
 	}
 	return multipolygon
 }
 
-func readline(mpbf pbf.PBF,num int, endpos int) [][]float64 {
-	var x, y float64
+func readline(mpbf pbf.PBF,num int, endpos int,dim_size int) [][]float64 {
+	pt := make([]float64,dim_size)
 	if num == 0 {
-
 		for startpos := mpbf.Pos; startpos < endpos; startpos++ {
 			if mpbf.Pbf[startpos] <= 127 {
 				num += 1
 			}
 		}
-		newlist := make([][]float64, num/2)
-
-		for i := 0; i < num/2; i++ {
-			x += mpbf.ReadSVarintPower()
-			y += mpbf.ReadSVarintPower()
-			newlist[i] = []float64{round(x, .5, 7), round(y, .5, 7)}
+		newlist := make([][]float64, num/dim_size)
+		for i := 0; i < num/dim_size; i++ {
+			rdpt := make([]float64,dim_size)
+			for j := 0;j < dim_size; j++ {
+				pt[j] += mpbf.ReadSVarintPower()
+				rdpt[j] = round(pt[j],0.5,7)
+			}
+			newlist[i] = rdpt
 		}
 		return newlist
 	} else {
-		newlist := make([][]float64, num/2)
-
-		for i := 0; i < num/2; i++ {
-			x += mpbf.ReadSVarintPower()
-			y += mpbf.ReadSVarintPower()
-
-			newlist[i] = []float64{round(x, .5, 7), round(y, .5, 7)}
-
+		newlist := make([][]float64, num/dim_size)
+		for i := 0; i < num/dim_size; i++ {
+			rdpt := make([]float64,dim_size)
+			for j := 0;j < dim_size; j++ {
+				pt[j] += mpbf.ReadSVarintPower()
+				rdpt[j] = round(pt[j],0.5,7)
+			}
+			newlist[i] = rdpt
 		}
 		return newlist
 	}
@@ -148,10 +150,11 @@ func readboundingbox(mpbf pbf.PBF) []float64 {
 
 // ############### STARTING geom writing
 // converts a single pt
-func ConvertPt(pt []float64) []int64 {
-	newpt := make([]int64, 2)
-	newpt[0] = int64(pt[0] * math.Pow(10.0, 7.0))
-	newpt[1] = int64(pt[1] * math.Pow(10.0, 7.0))
+func ConvertPt(pt []float64,dim_size int) []int64 {
+	newpt := make([]int64, dim_size)
+	for pos := range pt {
+		newpt[pos] = int64(pt[pos] * math.Pow(10.0, 7.0))
+	}
 	return newpt
 }
 
@@ -161,20 +164,20 @@ func paramEnc(value int64) uint64 {
 }
 
 
-func writepointbs(pt []float64) []byte {
-	point := ConvertPt(pt)
+func writepointbs(pt []float64,dim_size int) []byte {
+	point := ConvertPt(pt,dim_size)
 	return append([]byte{34}, WritePackedUint64([]uint64{paramEnc(point[0]), paramEnc(point[1])})...)
 }
 
 // makes a line to int64
-func writeline(line [][]float64) ([]uint64, []int64) {
+func writeline(line [][]float64,dim_size int) ([]uint64, []int64) {
 	//geometry := []uint64{}
 	west, south, east, north := 180.0, 90.0, -180.0, -90.0
 	//oldpt := Convert_Pt(line[0])
-	newline := make([]uint64, len(line)*2)
-	deltapt := make([]int64, 2)
-	pt := make([]int64, 2)
-	oldpt := make([]int64, 2)
+	newline := make([]uint64, len(line)*dim_size)
+	// deltapt := make([]int64, dim_size)
+	pt := make([]int64, dim_size)
+	oldpt := make([]int64, dim_size)
 
 	for i, point := range line {
 		x, y := point[0], point[1]
@@ -190,14 +193,15 @@ func writeline(line [][]float64) ([]uint64, []int64) {
 			north = y
 		}
 
-		pt = ConvertPt(point)
+		pt = ConvertPt(point,dim_size)
 		if i == 0 {
-			newline[0] = paramEnc(pt[0])
-			newline[1] = paramEnc(pt[1])
+			for j := 0; j < dim_size; j++ {
+				newline[j] = paramEnc(pt[j])
+			}
 		} else {
-			deltapt = []int64{pt[0] - oldpt[0], pt[1] - oldpt[1]}
-			newline[i*2] = paramEnc(deltapt[0])
-			newline[i*2+1] = paramEnc(deltapt[1])
+			for j := 0; j < dim_size; j++ {
+				newline[i*dim_size+j] = paramEnc(pt[j] - oldpt[j])
+			}
 		}
 		oldpt = pt
 	}
@@ -209,35 +213,34 @@ func writeline(line [][]float64) ([]uint64, []int64) {
 }
 
 // writes a line to bytes 
-func writelinebs(line [][]float64) ([]byte, []int64) {
-	newline,bbs := writeline(line)
+func writelinebs(line [][]float64,dim_size int) ([]byte, []int64) {
+	newline,bbs := writeline(line,dim_size)
 	return append([]byte{34}, WritePackedUint64(newline)...),bbs
 }
 
 
-func writepolygon(polygon [][][]float64) ([]uint64, []int64) {
+func writepolygon(polygon [][][]float64,dim_size int) ([]uint64, []int64) {
 	geometry := []uint64{}
 	bb := []int64{}
 	for i, cont := range polygon {
 		geometry = append(geometry, uint64(len(cont)*2))
 
-		tmpgeom, tmpbb := writeline(cont)
+		tmpgeom, tmpbb := writeline(cont,dim_size)
 		geometry = append(geometry, tmpgeom...)
 		if i == 0 {
 			bb = tmpbb
 		}
 	}
-	//geometryb = append(geometryb,WritePackedUint64(geometry)...)
 	return geometry, bb
 }
 
-func writepolygonbs(polygon [][][]float64) ([]byte, []int64) {
-	newline,bbs := writepolygon(polygon)
+func writepolygonbs(polygon [][][]float64,dim_size int) ([]byte, []int64) {
+	newline,bbs := writepolygon(polygon,dim_size)
 	return append([]byte{34}, WritePackedUint64(newline)...),bbs
 }
 
 // creates a multi polygon array
-func writemultipolygonbs(multipolygon [][][][]float64) ([]byte, []int64) {
+func writemultipolygonbs(multipolygon [][][][]float64,dim_size int) ([]byte, []int64) {
 	geometryb := []byte{34}
 	geometry := []uint64{}
 	west, south, east, north := 180.0, 90.0, -180.0, -90.0
@@ -246,7 +249,7 @@ func writemultipolygonbs(multipolygon [][][][]float64) ([]byte, []int64) {
 
 	for _, polygon := range multipolygon {
 		geometry = append(geometry, uint64(len(polygon)))
-		tempgeom, tempbb := writepolygon(polygon)
+		tempgeom, tempbb := writepolygon(polygon,dim_size)
 		geometry = append(geometry, tempgeom...)
 		if bb[0] > tempbb[0] {
 			bb[0] = tempbb[0]
