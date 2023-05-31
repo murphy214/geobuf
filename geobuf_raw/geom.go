@@ -54,6 +54,9 @@ func geomcode_details(x int) (int,int) {
 
 // makes the geometry code with dim_size embedded
 func makegeomcode(geom_type,dim_size int) byte {
+	if dim_size == 2 {
+		return byte(geom_type)
+	}
 	return byte((geom_type << 4) + dim_size)
 }
 
