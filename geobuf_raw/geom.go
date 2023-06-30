@@ -2,6 +2,7 @@ package geobuf_raw
 
 import (
 	"math"
+
 	"github.com/murphy214/pbf"
 	"github.com/paulmach/go.geojson"
 )
@@ -43,6 +44,7 @@ func getdimsize(geom *geojson.Geometry) int {
 
 // returns the geom_type and dim_size
 func geomcode_details(x int) (int,int) {
+	// fmt.Println(x,"geomcode")
 	if x <= 6 { 
 		return x,2 
 	} else {
@@ -74,7 +76,7 @@ func round(val float64, roundOn float64, places int) (newVal float64) {
 	return
 }
 
-func readpoint(mpbf pbf.PBF,endpos int,dim_size int) []float64 {
+func readpoint(mpbf *pbf.PBF,endpos int,dim_size int) []float64 {
 	for mpbf.Pos < endpos {
 		pt := make([]float64,dim_size)
 		for j := 0;j < dim_size; j++ {
@@ -85,16 +87,17 @@ func readpoint(mpbf pbf.PBF,endpos int,dim_size int) []float64 {
 	return []float64{}
 }
 
-func readpolygon(mpbf pbf.PBF,endpos int,dim_size int) [][][]float64 {
+func readpolygon(mpbf *pbf.PBF,endpos int,dim_size int) [][][]float64 {
 	polygon := [][][]float64{}
 	for mpbf.Pos < endpos {
 		num := mpbf.ReadVarint()
+		// fmt.Println(num,"here")
 		polygon = append(polygon, readline(mpbf,num, endpos,dim_size))
 	}
 	return polygon
 }
 
-func readmultipolygon(mpbf pbf.PBF,endpos int,dim_size int) [][][][]float64 {
+func readmultipolygon(mpbf *pbf.PBF,endpos int,dim_size int) [][][][]float64 {
 	multipolygon := [][][][]float64{}
 	for mpbf.Pos < endpos {
 		num_rings := mpbf.ReadVarint()
@@ -108,7 +111,7 @@ func readmultipolygon(mpbf pbf.PBF,endpos int,dim_size int) [][][][]float64 {
 	return multipolygon
 }
 
-func readline(mpbf pbf.PBF,num int, endpos int,dim_size int) [][]float64 {
+func readline(mpbf *pbf.PBF,num int, endpos int,dim_size int) [][]float64 {
 	pt := make([]float64,dim_size)
 	if num == 0 {
 		for startpos := mpbf.Pos; startpos < endpos; startpos++ {
@@ -127,6 +130,7 @@ func readline(mpbf pbf.PBF,num int, endpos int,dim_size int) [][]float64 {
 		}
 		return newlist
 	} else {
+		// fmt.Println(num,endpos,dim_size,"readline")
 		newlist := make([][]float64, num/dim_size)
 		for i := 0; i < num/dim_size; i++ {
 			rdpt := make([]float64,dim_size)
@@ -226,7 +230,7 @@ func writepolygon(polygon [][][]float64,dim_size int) ([]uint64, []int64) {
 	geometry := []uint64{}
 	bb := []int64{}
 	for i, cont := range polygon {
-		geometry = append(geometry, uint64(len(cont)*2))
+		geometry = append(geometry, uint64(len(cont)*dim_size))
 
 		tmpgeom, tmpbb := writeline(cont,dim_size)
 		geometry = append(geometry, tmpgeom...)

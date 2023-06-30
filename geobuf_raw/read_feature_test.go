@@ -73,7 +73,7 @@ func TestReadWritePolygon(t *testing.T) {
 				deltax := math.Abs(newfeature.Geometry.Polygon[i][j][0] - polygon.Geometry.Polygon[i][j][0])
 				deltay := math.Abs(newfeature.Geometry.Polygon[i][j][1] - polygon.Geometry.Polygon[i][j][1])
 				if deltax > precision || deltay > precision {
-					t.Error("Test_Read_Write_Polygon Geometry signicantly off %v %v",newfeature.Geometry,polygon.Geometry)
+					t.Errorf("Test_Read_Write_Polygon Geometry signicantly off %v %v",newfeature.Geometry,polygon.Geometry)
 				}
 			}
 		}
@@ -98,13 +98,13 @@ func TestReadWriteMultiPolygon(t *testing.T) {
 					deltax := math.Abs(newfeature.Geometry.MultiPolygon[i][j][k][0] - multipolygon.Geometry.MultiPolygon[i][j][k][0])
 					deltay := math.Abs(newfeature.Geometry.MultiPolygon[i][j][k][1] - multipolygon.Geometry.MultiPolygon[i][j][k][1])
 					if deltax > precision || deltay > precision {
-						t.Error("TestReadWriteMultiPolygon Geometry signicantly off %v %v",newfeature.Geometry,multipolygon.Geometry)
+						t.Errorf("TestReadWriteMultiPolygon Geometry signicantly off %v %v",newfeature.Geometry,multipolygon.Geometry)
 					}
 				}
 			}
 		}
 	} else {
-		t.Errorf("TestReadWriteMultiPolygon %v %v",newfeature,multipolygon,multipolygon)
+		t.Errorf("TestReadWriteMultiPolygon %v %v",newfeature,multipolygon)
 	}
 
 
@@ -125,7 +125,7 @@ func TestReadWriteMultiLineString(t *testing.T) {
 				deltax := math.Abs(newfeature.Geometry.MultiLineString[i][j][0] - multilinestring.Geometry.MultiLineString[i][j][0])
 				deltay := math.Abs(newfeature.Geometry.MultiLineString[i][j][1] - multilinestring.Geometry.MultiLineString[i][j][1])
 				if deltax > precision || deltay > precision {
-					t.Error("TestReadWriteMultiLineString Geometry signicantly off %v %v",newfeature.Geometry,multilinestring.Geometry)
+					t.Errorf("TestReadWriteMultiLineString Geometry signicantly off %v %v",newfeature.Geometry,multilinestring.Geometry)
 				}
 			}
 		}
@@ -147,7 +147,7 @@ func TestReadWriteLineString(t *testing.T) {
 			deltax := math.Abs(newfeature.Geometry.LineString[i][0] - linestring.Geometry.LineString[i][0])
 			deltay := math.Abs(newfeature.Geometry.LineString[i][1] - linestring.Geometry.LineString[i][1])
 			if deltax > precision || deltay > precision {
-				t.Error("TestReadWriteLineString Geometry signicantly off %v %v",newfeature.Geometry,linestring.Geometry)
+				t.Errorf("TestReadWriteLineString Geometry signicantly off %v %v",newfeature.Geometry,linestring.Geometry)
 			}
 		}
 	} else {
@@ -168,7 +168,7 @@ func TestReadWriteMultiPoint(t *testing.T) {
 			deltax := math.Abs(newfeature.Geometry.MultiPoint[i][0] - multipoint.Geometry.MultiPoint[i][0])
 			deltay := math.Abs(newfeature.Geometry.MultiPoint[i][1] - multipoint.Geometry.MultiPoint[i][1])
 			if deltax > precision || deltay > precision {
-				t.Error("TestReadWriteLineString Geometry signicantly off %v %v",newfeature.Geometry,multipoint.Geometry)
+				t.Errorf("TestReadWriteLineString Geometry signicantly off %v %v",newfeature.Geometry,multipoint.Geometry)
 			}
 		}
 	} else {
@@ -188,7 +188,7 @@ func TestReadWritePoint(t *testing.T) {
 		deltax := math.Abs(newfeature.Geometry.Point[0] - point.Geometry.Point[0])
 		deltay := math.Abs(newfeature.Geometry.Point[1] - point.Geometry.Point[1])
 		if deltax > precision || deltay > precision {
-				t.Error("TestReadWriteLineString Geometry signicantly off %v %v",newfeature.Geometry,point.Geometry)
+				t.Errorf("TestReadWriteLineString Geometry signicantly off %v %v",newfeature.Geometry,point.Geometry)
 		}
 	} else {
 		t.Errorf("TestReadWriteLineString %v %v",newfeature,point)

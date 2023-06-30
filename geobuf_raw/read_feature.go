@@ -76,17 +76,17 @@ func ReadFeature(bytevals []byte) *geojson.Feature {
 
 		switch geomtype {
 		case "Point":
-			feature.Geometry = geojson.NewPointGeometry(readpoint(pbfval,endpos,dimsize))
+			feature.Geometry = geojson.NewPointGeometry(readpoint(&pbfval,endpos,dimsize))
 		case "LineString":
-			feature.Geometry = geojson.NewLineStringGeometry(readline(pbfval,0, endpos,dimsize))
+			feature.Geometry = geojson.NewLineStringGeometry(readline(&pbfval,0, endpos,dimsize))
 		case "Polygon":
-			feature.Geometry = geojson.NewPolygonGeometry(readpolygon(pbfval,endpos,dimsize))
+			feature.Geometry = geojson.NewPolygonGeometry(readpolygon(&pbfval,endpos,dimsize))
 		case "MultiPoint":
-			feature.Geometry = geojson.NewMultiPointGeometry(readline(pbfval,0, endpos,dimsize)...)
+			feature.Geometry = geojson.NewMultiPointGeometry(readline(&pbfval,0, endpos,dimsize)...)
 		case "MultiLineString":
-			feature.Geometry = geojson.NewMultiLineStringGeometry(readpolygon(pbfval,endpos,dimsize)...)
+			feature.Geometry = geojson.NewMultiLineStringGeometry(readpolygon(&pbfval,endpos,dimsize)...)
 		case "MultiPolygon":
-			feature.Geometry = geojson.NewMultiPolygonGeometry(readmultipolygon(pbfval,endpos,dimsize)...)
+			feature.Geometry = geojson.NewMultiPolygonGeometry(readmultipolygon(&pbfval,endpos,dimsize)...)
 
 		}
 		key, val = pbfval.ReadKey()
