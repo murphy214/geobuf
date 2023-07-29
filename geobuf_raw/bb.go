@@ -88,6 +88,9 @@ func Expand_BoundingBoxs(bboxs [][]float64) []float64 {
 // boudning box on a normal point geometry
 // relatively useless
 func BoundingBox_PointGeometry(pt []float64) []float64 {
+	if len(pt) == 0 {
+		pt = []float64{0,0,0,0}
+	}
 	return []float64{pt[0], pt[1], pt[0], pt[1]}
 }
 

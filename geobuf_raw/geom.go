@@ -172,7 +172,17 @@ func paramEnc(value int64) uint64 {
 
 
 func writepointbs(pt []float64,dim_size int) []byte {
+	if dim_size == 0 {
+		dim_size = 2 
+	}
+	if len(pt) < dim_size {
+		pt = []float64{}
+		for len(pt) != dim_size {
+			pt = append(pt,0)
+		}
+	}
 	point := ConvertPt(pt,dim_size)
+
 	return append([]byte{34}, WritePackedUint64([]uint64{paramEnc(point[0]), paramEnc(point[1])})...)
 }
 
