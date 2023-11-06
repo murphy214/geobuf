@@ -7,6 +7,19 @@ import (
 	"github.com/paulmach/go.geojson"
 )
 
+func init() {
+	
+	// bs := WriteFeature(geojson.NewLineStringFeature([][]float64{{-90,40,0,250.123},{-91,41,0,251.123}}))
+	// fmt.Println(ReadFeature(bs).Geometry.LineString)
+
+	// eh := pbf.NewPBF(append(bs,[]byte{0,0,0,0}...))
+	// fmt.Println(readline(eh,0,len(bs),4))
+
+
+	// fmt.Println(readline(writelinebs([][]float64{{-90,40,0,300.123},{-91,41,0,301.123}},4),))
+
+}
+
 // gets the dimension size of the geometry if possible
 func getdimsize(geom *geojson.Geometry) int {
 	switch geom.Type {
@@ -167,7 +180,7 @@ func ConvertPt(pt []float64,dim_size int) []int64 {
 
 // param encoding
 func paramEnc(value int64) uint64 {
-	return uint64((value << 1) ^ (value >> 31))
+	return uint64((value << 1) ^ (value >> 63))
 }
 
 
@@ -182,6 +195,7 @@ func writepointbs(pt []float64,dim_size int) []byte {
 		}
 	}
 	point := ConvertPt(pt,dim_size)
+	// fmt.Println([]uint64{paramEnc(point[0]), paramEnc(point[1])})
 
 	return append([]byte{34}, WritePackedUint64([]uint64{paramEnc(point[0]), paramEnc(point[1])})...)
 }
@@ -215,6 +229,8 @@ func writeline(line [][]float64,dim_size int) ([]uint64, []int64) {
 			for j := 0; j < dim_size; j++ {
 				newline[j] = paramEnc(pt[j])
 			}
+			// fmt.Println([]uint64{paramEnc(point[0]), paramEnc(point[1])})
+
 		} else {
 			for j := 0; j < dim_size; j++ {
 				newline[i*dim_size+j] = paramEnc(pt[j] - oldpt[j])
